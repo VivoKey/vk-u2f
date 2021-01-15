@@ -1,0 +1,8 @@
+{
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "sdks/jc305u3_kit/lib/api_classic.jar",
+        "sdks/jc305u3_kit/lib/api_classic_annotations.jar"
+    ]
+	
+}

@@ -57,10 +57,10 @@ public class FIDOStandalone implements FIDOAPI {
             (ECPrivateKey)KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false));
         Secp256r1.setCommonCurveParameters((ECKey)keyPair.getPrivate());
         Secp256r1.setCommonCurveParameters((ECKey)keyPair.getPublic());
-        RandomData random = RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
+        RandomData random = RandomData.getInstance(RandomData.ALG_TRNG);
         // Initialize the unique wrapping key
         AESKey chipKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
-        random.generateData(scratch, (short)0, (short)32);
+        random.nextBytes(scratch, (short)0, (short)32);
         chipKey.setKey(scratch, (short)0);
         cipherEncrypt = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
         cipherEncrypt.init(chipKey, Cipher.MODE_ENCRYPT, IV_ZERO_AES, (short)0, (short)IV_ZERO_AES.length);
