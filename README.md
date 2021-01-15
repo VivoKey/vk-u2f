@@ -1,9 +1,14 @@
+VivoKey fork of the below
+=========================
+
+The end goal for this is that we implement CTAP2. Yes, this needs CBOR.
+
 Customized U2F Applet
 =====================
 
 This is a fork of the [Ledger U2F Applet](https://github.com/LedgerHQ/ledger-u2f-javacard) that is focused on privacy and compatability. It has several unique features:
 
-* Still works with JC 3.0.1 cards.
+* Still works with JC 3.0.1 cards. (Probably not anymore - Riley)
 * Supports iOS via NFC, by [working around a bug in Apple's FIDO2 implementation](https://github.com/darconeous/u2f-javacard/commit/8b58c4cdcae295977306d895c7d5afd7c5628a22).
 * [Multiple counters (8)](https://github.com/darconeous/u2f-javacard/commit/554b0718cddf1eccc575bede16fb3f32cc44707e), which are assigned to registrations in a round-robin fashion.
 * [EEPROM wear-leveling for counters](https://github.com/darconeous/u2f-javacard/commit/c2f223d69300a4227d8865b72b3d72158191afd6)
