@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project basedir="." default="applet" name="ledger-u2f-javacard">
-  <target name="applet">
+<project basedir="." default="dist" name="ledger-u2f-javacard">
+  <target name="dist">
     <get src="https://github.com/martinpaljak/ant-javacard/releases/download/v20.03.25/ant-javacard.jar" skipexisting="true" dest="."/>
     <taskdef name="javacard" classname="pro.javacard.ant.JavaCard" classpath="ant-javacard.jar"/>
     <javacard jckit="sdks/jc310b43_kit">
