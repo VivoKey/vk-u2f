@@ -1,8 +1,35 @@
+/*
+**
+** Copyright 2021, VivoKey Technologies
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+*/
+
 package com.vivokey.u2f;
 
 import javacard.framework.APDU;
+import javacard.framework.JCSystem;
 
 public class CTAP2 {
+
+    private CBORDecoder cborDecoder;
+
+    private byte[] ram1;
+    private byte[] ram2;
+    private byte[] ram3;
+    private byte[] ram4;
+    private byte[] ram5;
+    private short readout;
     private static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     private static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
     private static final byte CTAP1_ERR_INVALID_PARAMETER = (byte) 0x02;
@@ -57,19 +84,36 @@ public class CTAP2 {
     
     public CTAP2() {
         // Need some scratchpad RAM
+        ram1 = new byte[32];
+        ram2 = new byte[256];
+        ram3 = new byte[256];
+        ram4 = new byte[256];
+        ram5 = new byte[256];
+        readout = (short) 0;
+        // Create the CBOR decoder
+        cborDecoder = new CBORDecoder();
+        
     }
 
     public void handle(APDU apdu, byte[] buffer) {
         // Need to grab the CTAP command byte
         switch(buffer[apdu.getOffsetCdata()]) {
                 case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
-                    // This is 
+                    authMakeCredential(apdu, buffer);
         }
     }
 
 
     public void authMakeCredential(APDU apdu, byte[] buffer) {
-
+        cborDecoder.init((short) (apdu.getOffsetCdata()+1), (short) (apdu.getIncomingLength()-1));
+        // Read the data hash
+        readout = cborDecoder.readByteString(ram1, (byte) 0);
+        // Read the rp (PublicKeyCredentialUserEntity object)
+        short rpLen = cborDecoder.readByteString(ram2, (byte) 0);
+        short userLen = cborDecoder.readByteString(ram3, (byte) 0);
+        short pkParamLen = cborDecoder.readByteString(ram4, (byte) 0);
+        // optionals
+        short exclLen = cborDecoder.readByteString(ram5, (byte) 0);
     }
 
 }

@@ -87,6 +87,7 @@ public class CBORDecoder extends CBORBase{
         return getCurrentOffset();
     }
 
+    
     /**
      * Read the major type and verifies if it matches the given type. Returns the
      * length information of the additional information field (increases offset by
