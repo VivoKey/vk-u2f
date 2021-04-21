@@ -1,4 +1,4 @@
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 public interface Presence {
     /** A user is present.

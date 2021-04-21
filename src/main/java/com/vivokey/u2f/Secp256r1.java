@@ -17,7 +17,7 @@
 *******************************************************************************
 */
 
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 import javacard.security.ECKey;
 

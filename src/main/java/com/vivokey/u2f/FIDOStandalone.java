@@ -17,7 +17,7 @@
 *******************************************************************************
 */
 
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;

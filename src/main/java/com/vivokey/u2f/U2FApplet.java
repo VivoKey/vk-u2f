@@ -17,7 +17,7 @@
 *******************************************************************************
 */
 
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 import javacard.framework.*;
 import javacard.security.*;
@@ -39,6 +39,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private Signature attestationSignature;
     private Signature localSignature;
     private FIDOAPI fidoImpl;
+    private CTAP2 ctapImpl;
 
     private static final byte VERSION[] = { 'U', '2', 'F', '_', 'V', '2' };
 
@@ -94,7 +95,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte INSTALL_FLAG_DISABLE_USER_PRESENCE = (byte)0x01;
     private static final byte INSTALL_FLAG_ALLOW_RESET_ATTEST = (byte)0x02;
 
-    private static final byte CTAP1_ERR_INVALID_COMMAND = (byte)0x01;
+    
+
+
 
     // Parameters
     // 1 byte : flags
@@ -156,6 +159,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
 
         fidoImpl = new FIDOStandalone();
+        ctapImpl = new CTAP2();
     }
 
     private void handleSetAttestationCert(APDU apdu) throws ISOException {
@@ -498,7 +502,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
         if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
             if (buffer[ISO7816.OFFSET_INS] == FIDO2_INS_NFCCTAP_MSG) {
-                handleCtap2(apdu);
+                ctapImpl.handle(apdu, buffer);
             } else {
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
             }
@@ -525,21 +529,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
         }
     }
 
-    private void
-    handleCtap2(APDU apdu)
-    {
-        // We don't actually support CTAP2, so we always
-        // return CTAP1_ERR_INVALID_COMMAND.
-        final byte[] buffer = apdu.getBuffer();
-        apdu.setIncomingAndReceive();
-        short dataOffset = apdu.getOffsetCdata();
-
-        short len = 0;
-
-        buffer[len++] = CTAP1_ERR_INVALID_COMMAND;
-
-        apdu.setOutgoingAndSend((short)0, len);
-    }
 
     public static void install (byte bArray[], short bOffset, byte bLength) throws ISOException {
         short offset = bOffset;

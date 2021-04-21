@@ -1,4 +1,4 @@
-package com.ledger.u2f;
+package com.vivokey.u2f;
 
 /**
  * Null user presence detection.

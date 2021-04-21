@@ -15,7 +15,7 @@
 ** limitations under the License.
 */
 
-package android.security.identity_credential;
+package com.vivokey.u2f;
 
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
