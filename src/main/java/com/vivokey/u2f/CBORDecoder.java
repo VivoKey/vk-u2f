@@ -1,4 +1,5 @@
 /*
+** 
 **
 ** Copyright 2018, The Android Open Source Project
 **
@@ -239,7 +240,7 @@ public class CBORDecoder extends CBORBase{
      * 
      * @return Current raw byte
      */
-    private byte readRawByte() {
+    public byte readRawByte() {
         return getBuffer()[mStatusWords[0]++];
     }
 

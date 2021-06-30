@@ -17,18 +17,19 @@
 
 package com.vivokey.u2f;
 
+import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
+
 import javacard.framework.APDU;
+import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
+import javacard.framework.Util;
 
 public class CTAP2 {
 
     private CBORDecoder cborDecoder;
 
-    private byte[] ram1;
-    private byte[] ram2;
-    private byte[] ram3;
-    private byte[] ram4;
-    private byte[] ram5;
+    private byte[] inBuf;
+    private short[] vars;
     private short readout;
     private static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     private static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -83,37 +84,71 @@ public class CTAP2 {
 
     
     public CTAP2() {
-        // Need some scratchpad RAM
-        ram1 = new byte[32];
-        ram2 = new byte[256];
-        ram3 = new byte[256];
-        ram4 = new byte[256];
-        ram5 = new byte[256];
+
+        // 1024 bytes of a transient buffer for read-in
+        inBuf = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_DESELECT);
+        vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
         readout = (short) 0;
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
         
     }
 
-    public void handle(APDU apdu, byte[] buffer) {
+    public void handle(APDU apdu, byte[] buffer, short lenFirst) {
+        // Check if the APDU is too big, we only handle 1024 byte
+        if(apdu.getIncomingLength() > 1024) {
+            returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
+            return;
+        }
+        vars[3] = apdu.getIncomingLength();
+        // Read into the buffer, as messages can be pretty large
+        vars[0] = (short) (lenFirst - apdu.getOffsetCdata());
+        vars[1] = apdu.getOffsetCdata();
+        vars[2] = 0;
+        // Copy first part of the APDU
+        Util.arrayCopy(buffer, vars[1], inBuf, vars[2], vars[0]);
+        // Source offset
+        vars[1] = 0;
+        vars[2] = vars[0];
+        while(apdu.getCurrentState() == APDU.STATE_PARTIAL_INCOMING) {
+            // Grab more bytes, set new length, etc
+            vars[0] = apdu.receiveBytes(vars[1]);
+            Util.arrayCopy(buffer, vars[1], inBuf, vars[2], vars[0]);
+            // Source offset
+            vars[1] = 0;
+            vars[2] += vars[0];
+        }
         // Need to grab the CTAP command byte
-        switch(buffer[apdu.getOffsetCdata()]) {
+        switch(inBuf[0]) {
                 case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
-                    authMakeCredential(apdu, buffer);
+                    authMakeCredential(apdu, buffer, inBuf, vars[3]);
+                default:
+                    returnError(apdu, buffer, CTAP2_ERR_OPERATION_DENIED);
         }
     }
 
 
-    public void authMakeCredential(APDU apdu, byte[] buffer) {
-        cborDecoder.init((short) (apdu.getOffsetCdata()+1), (short) (apdu.getIncomingLength()-1));
-        // Read the data hash
-        readout = cborDecoder.readByteString(ram1, (byte) 0);
-        // Read the rp (PublicKeyCredentialUserEntity object)
-        short rpLen = cborDecoder.readByteString(ram2, (byte) 0);
-        short userLen = cborDecoder.readByteString(ram3, (byte) 0);
-        short pkParamLen = cborDecoder.readByteString(ram4, (byte) 0);
-        // optionals
-        short exclLen = cborDecoder.readByteString(ram5, (byte) 0);
+    public void authMakeCredential(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        try {
+            // Init the decoder
+            cborDecoder.init(inBuf, (short) 1, bufLen);
+            // create a credential object
+            AuthenticatorMakeCredential cred = new AuthenticatorMakeCredential(cborDecoder, vars);
+        } catch (ISOException e) {
+            // We redo ISOExceptions as a CBOR error
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        }
+        
+    }
+    /**
+     * Return an error via APDU - an error on the FIDO2 side is considered a success in APDU-land so we send a response. 
+     * @param apdu shared APDU object
+     * @param buffer APDU buffer
+     * @param err error code
+     */
+    public void returnError(APDU apdu, byte[] buffer, byte err) {
+        buffer[0] = err;
+        apdu.setOutgoingAndSend((short) 0, (short) 1);
     }
 
 }
