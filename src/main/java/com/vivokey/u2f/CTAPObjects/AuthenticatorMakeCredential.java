@@ -12,14 +12,18 @@ public class AuthenticatorMakeCredential {
     private byte[] dataHash;
     private PublicKeyCredentialRpEntity rp;
     private PublicKeyCredentialUserEntity user;
+    private PublicKeyCredentialParams params;
+    private boolean[] options = new boolean[2];
     // Representation of "id" in UTF8
-    private static byte[] UTF8_ID = {0x69, 0x64};
-    // Representation of "type" in UTF8
-    private static byte[] UTF8_TYPE = {0x74, 0x79, 0x70, 0x65};
+    private static final byte[] UTF8_ID = {0x69, 0x64};
     // Representation of "name" in UTF8
-    private static byte[] UTF8_NAME = {0x6e, 0x61, 0x6d, 0x65};
+    private static final byte[] UTF8_NAME = {0x6e, 0x61, 0x6d, 0x65};
     // Representation of "displayName" in UTF8
-    private static byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
+    private static final byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
+    // Representation of "alg" in UTF8
+    private static final byte[] UTF8_ALG = {0x61, 0x6c, 0x67};
+    private static final byte[] UTF8_UV = {0x75, 0x76};
+    private static final byte[] UTF8_RK = {0x72, 0x6b};
     private byte[] scratch1;
     private byte[] scratch2;
 
@@ -33,6 +37,10 @@ public class AuthenticatorMakeCredential {
         scratch1 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
         scratch2 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
         vars[4] = decoder.readMajorType(CBORBase.TYPE_MAP);
+        // options[0] is rk - default false
+        // options[1] is uv - default false
+        options[0] = false;
+        options[1] = false;
         // We now have the number of objects in the map
         // Read all the objects in map
         for(vars[6] = 0; vars[6] < vars[4]; vars[6]++) {
@@ -132,9 +140,85 @@ public class AuthenticatorMakeCredential {
                     break;
                 case (short) 4:
                     // pubKeyCredParams - this is the type of credentials usable
+                    // Read the array length
+                    vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                    // Create the params object
+                    params = new PublicKeyCredentialParams(vars[0]);
+                    // Process the array
+                    for(vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                        // Read the map length - should be 2
+                        vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        // Iterate over the map
+                        for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
+                            vars[4] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
+                            decoder.readByteString(scratch1, (short) 0);
+                            if(Util.arrayCompare(scratch1, (short) 0, UTF8_ALG, (short) 0, (short) 3) == (byte) 0) {
+                                // Read the integer type (positive or negative)
+                                if(decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
+                                    // Positive number
+                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                    if(vars[4] == 1) {
+                                        // Single byte
+                                        params.addAlgorithm(scratch2[0]);
+                                    } else if (vars[4] == 2) {
+                                        // A full short
+                                        params.addAlgorithm(Util.makeShort(scratch2[0], scratch2[1]));
+                                    }
+                                } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                    // Negative
+                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                    if(vars[4] == 1) {
+                                        params.addAlgorithm((short) (-1 - scratch2[0]));
+                                    } else if (vars[4] == 2) {
+                                        // Full short
+                                        params.addAlgorithm((short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
+                                    }
+                                }
+                                
+                            }
+                        }
+                        // Done
+                    }
+                    break;
+                case (short) 7:
+                    // Options map
+                    // Parse the two rk and uv objects
+                    // Read the map
+                    vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    for(vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                        // Parse the map
+                        vars[2] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
+                        decoder.readByteString(scratch1, (short) 0);
+                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_UV, (short) 0, (short) 2) == (short) 0) {
+                            // Is the user validation bit
+                            options[1] = decoder.readBoolean();
+                        }
+                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_RK, (short) 0, (short) 2) == (short) 0) {
+                            // Is the resident key bit
+                            options[0] = decoder.readBoolean();
+                        }
+                    }
+                case (short) 5:
+                case (short) 6:
+                default:
+                    break;
+
             }
-        }    
+        }
     }
+
+    public PublicKeyCredentialUserEntity getUser() {
+        return user;
+    }
+    public PublicKeyCredentialRpEntity getRp() {
+        return rp;
+    }
+
+    public boolean isResident() {
+        return options[0];
+    }
+
+
 
 
 }
