@@ -1,3 +1,19 @@
+/*
+**
+** Copyright 2021, VivoKey Technologies
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+*/
 package com.vivokey.u2f.CTAPObjects;
 
 import com.vivokey.u2f.CBORBase;
@@ -37,9 +53,9 @@ public class AuthenticatorMakeCredential {
         scratch1 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
         scratch2 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
         vars[4] = decoder.readMajorType(CBORBase.TYPE_MAP);
-        // options[0] is rk - default false
+        // options[0] is rk - default true for us
         // options[1] is uv - default false
-        options[0] = false;
+        options[0] = true;
         options[1] = false;
         // We now have the number of objects in the map
         // Read all the objects in map
@@ -115,7 +131,7 @@ public class AuthenticatorMakeCredential {
                             // Read the string into scratch
                             decoder.readByteString(scratch1, (short) 0);
                             // Set it
-                            user.setId(scratch1, vars[1]);
+                            user.setId(scratch1,(short) 0, vars[1]);
                         } else 
                         // Check if it equals name, if not id
                         if(Util.arrayCompare(scratch1, (short) 0, UTF8_NAME, (short) 0, (short) 4) == (byte) 0) {
@@ -199,12 +215,15 @@ public class AuthenticatorMakeCredential {
                         }
                     }
                 case (short) 5:
+                    // Credential exclusion stuff: TODO
                 case (short) 6:
                 default:
                     break;
 
             }
         }
+
+        // We're done, I guess
     }
 
     public PublicKeyCredentialUserEntity getUser() {
@@ -216,6 +235,9 @@ public class AuthenticatorMakeCredential {
 
     public boolean isResident() {
         return options[0];
+    }
+    public byte getAlgorithm() {
+        return params.getAlgorithm();
     }
 
 

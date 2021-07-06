@@ -2,6 +2,7 @@
 *******************************************************************************
 *   FIDO U2F Authenticator
 *   (c) 2015 Ledger
+*   with U2F v2 changes (c) VivoKey Technologies
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -159,7 +160,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
 
         fidoImpl = new FIDOStandalone();
-        ctapImpl = new CTAP2();
+        ctapImpl = new CTAP2(this);
     }
 
     private void handleSetAttestationCert(APDU apdu) throws ISOException {
@@ -222,19 +223,18 @@ public class U2FApplet extends Applet implements ExtendedLength {
         }
 
         JCSystem.beginTransaction();
-        {
-            short certLen = Util.getShort(buffer, dataOffset);
-            if (certLen != (short) attestationCertificate.length) {
-                attestationCertificate = new byte[Util.getShort(buffer, dataOffset)];
-            }
-            attestationCertificateSet = false;
-
-            // Set up our attestation signature object.
-            ECPrivateKey attestationPrivateKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
-            Secp256r1.setCommonCurveParameters(attestationPrivateKey);
-            attestationPrivateKey.setS(buffer, (short) (dataOffset + 2), (short) 32);
-            attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
+        short certLen = Util.getShort(buffer, dataOffset);
+        if (certLen != (short) attestationCertificate.length) {
+            attestationCertificate = new byte[Util.getShort(buffer, dataOffset)];
         }
+        attestationCertificateSet = false;
+
+        // Set up our attestation signature object.
+        ECPrivateKey attestationPrivateKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
+        Secp256r1.setCommonCurveParameters(attestationPrivateKey);
+        attestationPrivateKey.setS(buffer, (short) (dataOffset + 2), (short) 32);
+        attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
+        
         JCSystem.commitTransaction();
 
         JCSystem.requestObjectDeletion();
@@ -530,7 +530,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
     }
 
 
-    public static void install (byte bArray[], short bOffset, byte bLength) throws ISOException {
+    public static void install (byte[] bArray, short bOffset, byte bLength) throws ISOException {
         short offset = bOffset;
         offset += (short)(bArray[offset] + 1); // instance
         offset += (short)(bArray[offset] + 1); // privileges

@@ -18,30 +18,36 @@ package com.vivokey.u2f;
 
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
+import javacard.security.ECKey;
+import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
-import javacardx.crypto.Cipher;
+import javacard.security.Signature;
 
-public class StoredRS256Credential extends StoredCredential {
-    Cipher kpSignature;
-    public StoredRS256Credential(AuthenticatorMakeCredential inputData) {
-        // Generate a new RS256 credential
-        kp = new KeyPair(KeyPair.ALG_RSA_CRT, KeyBuilder.LENGTH_RSA_2048);
+public class StoredES256Credential extends StoredCredential {
+
+    Signature sig;
+    public StoredES256Credential(AuthenticatorMakeCredential inputData) {
+        // Generate a new ES256 credential
+        kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
         kp.genKeyPair();
-        // Generate a signature object
-        kpSignature = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
-        kpSignature.init(kp.getPrivate(), Cipher.MODE_ENCRYPT);
+        sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
+        sig.init(kp.getPublic(), Signature.MODE_SIGN);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
     @Override
     public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
-        // TODO Auto-generated method stub
+        // Performs the signature as per ES256 
+        sig.sign(inBuf, inOff, inLen, outBuf, outOff);
         
     }
+
     @Override
     public void getPublic(byte[] outBuf, short outOff) {
-        // TODO Auto-generated method stub
+        // Copy the public key into the output buffer
+        ((ECPublicKey) kp.getPublic()).getW(outBuf, outOff);
         
     }
     

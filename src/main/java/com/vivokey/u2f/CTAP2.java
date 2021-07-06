@@ -23,6 +23,7 @@ import javacard.framework.APDU;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.Signature;
 
 public class CTAP2 {
 
@@ -30,8 +31,8 @@ public class CTAP2 {
 
     private byte[] inBuf;
     private short[] vars;
-    private short readout;
     private CredentialArray discoverableCreds;
+    private U2FApplet app;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -85,19 +86,19 @@ public class CTAP2 {
     private static final byte FIDO2_AUTHENTICATOR_RESET = (byte) 0x07;
 
     
-    public CTAP2() {
+    public CTAP2(U2FApplet attest) {
 
         // 1024 bytes of a transient buffer for read-in
         inBuf = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_DESELECT);
         vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
-        readout = (short) 0;
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
         discoverableCreds = new CredentialArray((short) 10);
-        
+        app = attest;
     }
 
-    public void handle(APDU apdu, byte[] buffer, short lenFirst) {
+    public void handle(APDU apdu, byte[] buffer) {
+        vars[4] = apdu.setIncomingAndReceive();
         // Check if the APDU is too big, we only handle 1024 byte
         if(apdu.getIncomingLength() > 1024) {
             returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
@@ -105,7 +106,7 @@ public class CTAP2 {
         }
         vars[3] = apdu.getIncomingLength();
         // Read into the buffer, as messages can be pretty large
-        vars[0] = (short) (lenFirst - apdu.getOffsetCdata());
+        vars[0] = (short) (vars[4] - apdu.getOffsetCdata());
         vars[1] = apdu.getOffsetCdata();
         vars[2] = 0;
         // Copy first part of the APDU
@@ -137,8 +138,23 @@ public class CTAP2 {
             cborDecoder.init(inBuf, (short) 1, bufLen);
             // create a credential object
             AuthenticatorMakeCredential cred = new AuthenticatorMakeCredential(cborDecoder, vars);
+            
             if(cred.isResident()) {
-                // Resident, so we need to enrol this... somewhere
+                // Create the actual credential
+                StoredCredential residentCred = null;
+                switch (cred.getAlgorithm()) {
+                    case Signature.ALG_ECDSA_SHA_256:
+                        residentCred = new StoredES256Credential(cred);
+                    case Signature.ALG_RSA_SHA_256_PKCS1:
+                        residentCred = new StoredRS256Credential(cred);
+                    default:
+                        returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                }
+                // Add the credential to the resident storage, overwriting if necessary
+                addResident(apdu, buffer, residentCred);
+                
+                // Create the data array representing this credential
+
             }
         } catch (ISOException e) {
             // We redo ISOExceptions as a CBOR error
@@ -150,9 +166,9 @@ public class CTAP2 {
     private void addResident(APDU apdu, byte[] buffer, StoredCredential cred) {
         // Add a Discoverable Credential (resident)
         try {
-            
-        } catch (CTAP2Exception e) {
-            returnError(apdu, buffer, e.getReason());
+            discoverableCreds.addCredential(cred);
+        } catch (ISOException e) {
+            returnError(apdu, buffer, (byte) CTAP2_ERR_INVALID_CREDENTIAL);
         }
     }
     /**

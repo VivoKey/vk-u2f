@@ -83,7 +83,7 @@ public class CBORDecoder extends CBORBase{
             break;
         case TYPE_TAG:
         case TYPE_FLOAT:
-            // TODO: implement
+            // Not us
         }
         return getCurrentOffset();
     }
