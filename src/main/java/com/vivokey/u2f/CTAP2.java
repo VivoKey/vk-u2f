@@ -23,15 +23,19 @@ import javacard.framework.APDU;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.MessageDigest;
 import javacard.security.Signature;
 
 public class CTAP2 {
 
     private CBORDecoder cborDecoder;
+    private CBOREncoder cborEncoder;
 
     private byte[] inBuf;
+    private byte[] scratch;
     private short[] vars;
     private CredentialArray discoverableCreds;
+    private MessageDigest sha;
     private U2FApplet app;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
@@ -88,19 +92,22 @@ public class CTAP2 {
     
     public CTAP2(U2FApplet attest) {
 
-        // 1024 bytes of a transient buffer for read-in
-        inBuf = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_DESELECT);
+        // 1200 bytes of a transient buffer for read-in and out
+        inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
+        scratch = JCSystem.makeTransientByteArray((short) 512, JCSystem.CLEAR_ON_DESELECT);
         vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
+        cborEncoder = new CBOREncoder();
         discoverableCreds = new CredentialArray((short) 10);
         app = attest;
+        sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
     }
 
     public void handle(APDU apdu, byte[] buffer) {
         vars[4] = apdu.setIncomingAndReceive();
-        // Check if the APDU is too big, we only handle 1024 byte
-        if(apdu.getIncomingLength() > 1024) {
+        // Check if the APDU is too big, we only handle 1200 byte
+        if(apdu.getIncomingLength() > 1200) {
             returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
             return;
         }
@@ -152,9 +159,22 @@ public class CTAP2 {
                 }
                 // Add the credential to the resident storage, overwriting if necessary
                 addResident(apdu, buffer, residentCred);
+                // Initialise the output buffer, for CBOR writing.
+                cborEncoder.init(inBuf, (short) 0, (short) 1200);
+                // Create a map in the buffer
+                vars[0] = cborEncoder.startMap((short) 3);
+                // Create the SHA256 hash of the RP ID
+                residentCred.rp.getRp(scratch, (short) 0);
+                // Override it 
+                sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), scratch, (short) 0);
+                // Set flags - User presence, user verified, attestation present
+                scratch[32] = (byte) 0x45;
+                // Set the signature counter
+                residentCred.readCounter(scratch, (short) 33);
+                // Read the credential details in
+                // TODO: Finish - needs cred details.
+                // vars[0] = cborEncoder.encodeByteString(byteString, offset, length);
                 
-                // Create the data array representing this credential
-
             }
         } catch (ISOException e) {
             // We redo ISOExceptions as a CBOR error
@@ -168,7 +188,7 @@ public class CTAP2 {
         try {
             discoverableCreds.addCredential(cred);
         } catch (ISOException e) {
-            returnError(apdu, buffer, (byte) CTAP2_ERR_INVALID_CREDENTIAL);
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
         }
     }
     /**

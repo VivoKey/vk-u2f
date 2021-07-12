@@ -18,7 +18,6 @@ package com.vivokey.u2f;
 
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
-import javacard.framework.Util;
 
 /**
  * Dynamically resizable credential storage array. Gracefully handles space errors.
@@ -44,7 +43,9 @@ public class CredentialArray {
      */
     public void addCredential(StoredCredential in) {
         try {
-            
+            short slot = alreadyExists(in);
+            creds[slot] = in;
+            slotStatus[slot] = true;
         } catch (Exception e) {
             ISOException.throwIt(CTAP2.CTAP2_ERR_KEY_STORE_FULL);
         }

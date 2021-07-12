@@ -19,7 +19,6 @@ package com.vivokey.u2f;
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
 import javacard.security.ECKey;
-import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.Signature;
@@ -41,14 +40,16 @@ public class StoredES256Credential extends StoredCredential {
     public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         // Performs the signature as per ES256 
         sig.sign(inBuf, inOff, inLen, outBuf, outOff);
+        incrementCounter();
         
+    }
+    @Override
+    public void getAttestedData(byte[] buf, short off) {
+        // Form the pubkey and co
+        // TODO: Build
+
     }
 
-    @Override
-    public void getPublic(byte[] outBuf, short outOff) {
-        // Copy the public key into the output buffer
-        ((ECPublicKey) kp.getPublic()).getW(outBuf, outOff);
-        
-    }
+
     
 }

@@ -19,6 +19,7 @@ package com.vivokey.u2f;
 import com.vivokey.u2f.CTAPObjects.PublicKeyCredentialRpEntity;
 import com.vivokey.u2f.CTAPObjects.PublicKeyCredentialUserEntity;
 
+import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.KeyPair;
 import javacard.security.RandomData;
@@ -30,9 +31,11 @@ public abstract class StoredCredential {
     KeyPair kp;
     PublicKeyCredentialUserEntity user;
     PublicKeyCredentialRpEntity rp;
+    private byte[] sigCounter;
     protected StoredCredential() {
         id = new byte[16];
         rng.nextBytes(id, (short) 0, (short) 16);
+        sigCounter = new byte[4];
     }
     // Generic ID check function, for credential IDs
     public boolean checkId(byte[] inBuf, short inOff, short inLen) {
@@ -40,6 +43,38 @@ public abstract class StoredCredential {
             return false;
         }
         return Util.arrayCompare(id, (short) 0, inBuf, inOff, inLen) == 0;
+    }
+    /**
+     * Increment the counter.
+     * NOTE: Atomic.
+     */
+    protected void incrementCounter() {
+        JCSystem.beginTransaction();
+
+        for(short i = 3; i > 1; i--) {
+            if(sigCounter[i] == 0xFF) {
+                sigCounter[i-1]++;
+                sigCounter[i] = 0x00;
+                JCSystem.commitTransaction();
+                return;
+            }
+        }
+        if(sigCounter[0] == 0xFF && sigCounter[1] == 0xFF && sigCounter[2] == 0xFF && sigCounter[3] == 0xFF) {
+            // Overflow, roll to 0
+            Util.arrayFill(sigCounter, (short) 0, (short) 4, (byte) 0x00);
+            JCSystem.commitTransaction();
+            return;
+        }
+        sigCounter[3]++;
+        JCSystem.commitTransaction();
+    }
+    /**
+     * Copies the counter (a 32-bit unsigned int) to the buffer specified, at offset bufOff.
+     * @param buf the buffer to copy into
+     * @param bufOff the offset to begin at
+     */
+    public void readCounter(byte[] buf, short bufOff) {
+        Util.arrayCopy(sigCounter, (short) 0, buf, bufOff, (short) 4);
     }
 
 
@@ -53,11 +88,11 @@ public abstract class StoredCredential {
      */
     public abstract void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff);
     /**
-     * Returns the public key attached to this object.
-     * @param outBuf buffer to copy the key into
-     * @param outOff offset to begin copying to
+     * Returns the attestation data (pubkey and definition) attached to this object.
+     * @param buf buffer to copy the details to
+     * @param off offset to begin copying to
      */
-    public abstract void getPublic(byte[] outBuf, short outOff);
+    public abstract void getAttestedData(byte[] buf, short off);
 
 
 }

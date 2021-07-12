@@ -101,10 +101,6 @@ public class FIDOStandalone implements FIDOAPI {
         scratch[48] = info;
 
         // Fill bytes 49 through 63 with zeros.
-        //
-        // TODO: Would there be any advantage to
-        //       doing a random fill here instead
-        //       of zero fill?
         Util.arrayFillNonAtomic(scratch, (short)49, (short)15, (byte)0x00);
 
         // Generate a new key pair.

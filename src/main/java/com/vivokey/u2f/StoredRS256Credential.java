@@ -36,11 +36,14 @@ public class StoredRS256Credential extends StoredCredential {
     }
     @Override
     public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
-        // TODO Auto-generated method stub
+        incrementCounter();
+        // Increment sig counter first
+        kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);
+        
         
     }
     @Override
-    public void getPublic(byte[] outBuf, short outOff) {
+    public void getAttestedData(byte[] buf, short off) {
         // TODO Auto-generated method stub
         
     }
