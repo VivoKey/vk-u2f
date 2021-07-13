@@ -88,6 +88,8 @@ public class CTAP2 {
     private static final byte FIDO2_AUTHENTICATOR_GET_INFO = (byte) 0x04;
     private static final byte FIDO2_AUTHENTICATOR_CLIENT_PIN = (byte) 0x06;
     private static final byte FIDO2_AUTHENTICATOR_RESET = (byte) 0x07;
+    // AAGUID - this uniquely identifies the type of authenticator we have built.
+    public static final byte[] aaguid = {(byte) 0xd7, (byte) 0xa4, (byte) 0x23, (byte) 0xad, (byte) 0x3e, (byte) 0x19, (byte) 0x44, (byte) 0x92, (byte) 0x92, (byte) 0x00, (byte) 0x78, (byte) 0x13, (byte) 0x7d, (byte) 0xcc, (byte) 0xc1, (byte) 0x36};
 
     
     public CTAP2(U2FApplet attest) {
@@ -102,6 +104,7 @@ public class CTAP2 {
         discoverableCreds = new CredentialArray((short) 10);
         app = attest;
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
+
     }
 
     public void handle(APDU apdu, byte[] buffer) {

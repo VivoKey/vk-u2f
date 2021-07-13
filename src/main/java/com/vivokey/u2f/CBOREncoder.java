@@ -108,6 +108,10 @@ public class CBOREncoder extends CBORBase{
         return encodeValue(TYPE_UNSIGNED_INTEGER, (short) (value & 0x00FF));
     }
 
+    public short encodeNegativeUInt8(byte value) {
+        return encodeValue(TYPE_NEGATIVE_INTEGER, (short) (value & 0x00FF));
+    }
+
     /**
      * Encode the given integer value at the current buffer location.
      * 
@@ -178,7 +182,7 @@ public class CBOREncoder extends CBORBase{
      * Write the given byte at the current buffer location and increase the offset
      * by one.
      */
-    final private short writeRawByte(byte val) {
+    final public short writeRawByte(byte val) {
         getBuffer()[getCurrentOffset()] = val;
         increaseOffset((short) 1);
         return (short) 1;

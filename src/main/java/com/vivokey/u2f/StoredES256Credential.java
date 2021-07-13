@@ -18,7 +18,9 @@ package com.vivokey.u2f;
 
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
+import javacard.framework.Util;
 import javacard.security.ECKey;
+import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.Signature;
@@ -45,9 +47,36 @@ public class StoredES256Credential extends StoredCredential {
     }
     @Override
     public void getAttestedData(byte[] buf, short off) {
+        CBOREncoder enc = new CBOREncoder();
+        // Get the ECPublicKey
+        byte[] w = new byte[65];
+        ((ECPublicKey) kp.getPublic()).getW(w, (short) 0);
         // Form the pubkey and co
-        // TODO: Build
-
+        // AAGUID
+        Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
+        // Length of the credential ID - 16 bytes
+        buf[off+16] = 0x00;
+        buf[off+17] = 0x10;
+        enc.init(buf, (short) (off + 18), (short) 1000);
+        enc.startMap((short) 5);
+        // We had to kinda hack the map labels - this is kty
+        enc.writeRawByte((byte) 0x01);
+        // EC2 keytype
+        enc.encodeUInt8((byte) 0x02);
+        // Alg - ES256
+        enc.writeRawByte((byte) 0x03);
+        enc.encodeNegativeUInt8((byte) 0x06);
+        // Curve type - P256
+        enc.writeRawByte((byte) -1);
+        enc.encodeUInt8((byte) 0x01);
+        // X coord
+        enc.writeRawByte((byte) -2);
+        enc.encodeByteString(w, (short) 1, (short) 32);
+        // Y coord
+        enc.writeRawByte((byte) -3);
+        enc.encodeByteString(w, (short) 33, (short) 32);
+        // That is all
+    
     }
 
 
