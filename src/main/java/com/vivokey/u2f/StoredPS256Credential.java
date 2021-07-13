@@ -22,18 +22,18 @@ import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
-import javacardx.crypto.Cipher;
 import javacard.security.RSAPublicKey;
+import javacard.security.Signature;
 
-public class StoredRS256Credential extends StoredCredential {
-    Cipher kpSignature;
-    public StoredRS256Credential(AuthenticatorMakeCredential inputData) {
+public class StoredPS256Credential extends StoredCredential {
+    Signature kpSignature;
+    public StoredPS256Credential(AuthenticatorMakeCredential inputData) {
         // Generate a new RS256 credential
         kp = new KeyPair(KeyPair.ALG_RSA_CRT, KeyBuilder.LENGTH_RSA_2048);
         kp.genKeyPair();
         // Generate a signature object
-        kpSignature = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
-        kpSignature.init(kp.getPrivate(), Cipher.MODE_ENCRYPT);
+        kpSignature = Signature.getInstance(Signature.ALG_RSA_SHA_256_PKCS1_PSS, false);
+        kpSignature.init(kp.getPrivate(), Signature.MODE_SIGN);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
@@ -41,7 +41,7 @@ public class StoredRS256Credential extends StoredCredential {
     public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         incrementCounter();
         // Increment sig counter first
-        kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);
+        kpSignature.sign(inBuf, inOff, inLen, outBuf, outOff);
         
         
     }
@@ -69,8 +69,8 @@ public class StoredRS256Credential extends StoredCredential {
         enc.encodeUInt8((byte) 0x03);
         // alg
         enc.writeRawByte((byte) 0x03);
-        // RS256 - -257 is 256 negative (minus 1 for neg on CBOR)
-        enc.encodeNegativeUInt16((short) 256);
+        // PS256 - -37 is 36 negative (minus 1 for neg on CBOR)
+        enc.encodeNegativeUInt8((byte) 36);
         // Modulus tag
         enc.writeRawByte((byte) -1);
         // Write the modulus

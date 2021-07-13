@@ -112,6 +112,10 @@ public class CBOREncoder extends CBORBase{
         return encodeValue(TYPE_NEGATIVE_INTEGER, (short) (value & 0x00FF));
     }
 
+    public short encodeNegativeUInt16(short value) {
+        return encodeValue(TYPE_NEGATIVE_INTEGER, value);
+    }
+
     /**
      * Encode the given integer value at the current buffer location.
      * 

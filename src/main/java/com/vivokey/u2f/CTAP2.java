@@ -157,6 +157,8 @@ public class CTAP2 {
                         residentCred = new StoredES256Credential(cred);
                     case Signature.ALG_RSA_SHA_256_PKCS1:
                         residentCred = new StoredRS256Credential(cred);
+                    case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
+                        residentCred = new StoredPS256Credential(cred);
                     default:
                         returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                 }

@@ -18,6 +18,7 @@ package com.vivokey.u2f;
 
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
+import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
@@ -49,7 +50,7 @@ public class StoredES256Credential extends StoredCredential {
     public void getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the ECPublicKey
-        byte[] w = new byte[65];
+        byte[] w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
         ((ECPublicKey) kp.getPublic()).getW(w, (short) 0);
         // Form the pubkey and co
         // AAGUID
@@ -57,7 +58,9 @@ public class StoredES256Credential extends StoredCredential {
         // Length of the credential ID - 16 bytes
         buf[off+16] = 0x00;
         buf[off+17] = 0x10;
-        enc.init(buf, (short) (off + 18), (short) 1000);
+        // Copy the credential ID
+        Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
+        enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
         // We had to kinda hack the map labels - this is kty
         enc.writeRawByte((byte) 0x01);
@@ -76,6 +79,8 @@ public class StoredES256Credential extends StoredCredential {
         enc.writeRawByte((byte) -3);
         enc.encodeByteString(w, (short) 33, (short) 32);
         // That is all
+        w = null;
+        JCSystem.requestObjectDeletion();
     
     }
 

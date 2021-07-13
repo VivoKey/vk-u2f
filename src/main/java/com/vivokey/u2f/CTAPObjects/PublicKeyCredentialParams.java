@@ -9,6 +9,7 @@ public class PublicKeyCredentialParams {
     private short listIndex;
     public static final short COSE_ES256 = -7;
     public static final short COSE_RS256 = -257;
+    public static final short COSE_PS256 = -37;
     public PublicKeyCredentialParams(short len) {
         // Create the array
         paramList = new short[len];
@@ -27,6 +28,9 @@ public class PublicKeyCredentialParams {
             }
             if(paramList[i] == COSE_RS256) {
                 return Signature.ALG_RSA_SHA_256_PKCS1;
+            }
+            if(paramList[i] == COSE_PS256) {
+                return Signature.ALG_RSA_SHA_256_PKCS1_PSS;
             }
         }
         // Didn't get a result
