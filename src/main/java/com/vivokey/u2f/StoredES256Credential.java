@@ -47,7 +47,8 @@ public class StoredES256Credential extends StoredCredential {
         
     }
     @Override
-    public void getAttestedData(byte[] buf, short off) {
+
+    public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the ECPublicKey
         byte[] w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
@@ -56,32 +57,35 @@ public class StoredES256Credential extends StoredCredential {
         // AAGUID
         Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
         // Length of the credential ID - 16 bytes
-        buf[off+16] = 0x00;
-        buf[off+17] = 0x10;
+        short len = 16;
+        buf[off+len++] = 0x00;
+        buf[off+len++] = 0x10;
         // Copy the credential ID
-        Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
-        enc.init(buf, (short) (off + 34), (short) 1000);
+        Util.arrayCopy(id, (short) 0, buf, (short) (off+len), (short) 16);
+        len += 16;
+        enc.init(buf, (short) (off + len), (short) 1000);
         enc.startMap((short) 5);
+        len++;
         // We had to kinda hack the map labels - this is kty
-        enc.writeRawByte((byte) 0x01);
+        len += enc.writeRawByte((byte) 0x01);
         // EC2 keytype
-        enc.encodeUInt8((byte) 0x02);
+        len += enc.encodeUInt8((byte) 0x02);
         // Alg - ES256
-        enc.writeRawByte((byte) 0x03);
-        enc.encodeNegativeUInt8((byte) 0x06);
+        len += enc.writeRawByte((byte) 0x03);
+        len += enc.encodeNegativeUInt8((byte) 0x06);
         // Curve type - P256
-        enc.writeRawByte((byte) -1);
-        enc.encodeUInt8((byte) 0x01);
+        len += enc.writeRawByte((byte) -1);
+        len += enc.encodeUInt8((byte) 0x01);
         // X coord
-        enc.writeRawByte((byte) -2);
-        enc.encodeByteString(w, (short) 1, (short) 32);
+        len += enc.writeRawByte((byte) -2);
+        len += enc.encodeByteString(w, (short) 1, (short) 32);
         // Y coord
-        enc.writeRawByte((byte) -3);
-        enc.encodeByteString(w, (short) 33, (short) 32);
+        len += enc.writeRawByte((byte) -3);
+        len += enc.encodeByteString(w, (short) 33, (short) 32);
         // That is all
         w = null;
         JCSystem.requestObjectDeletion();
-    
+        return len;
     }
 
 

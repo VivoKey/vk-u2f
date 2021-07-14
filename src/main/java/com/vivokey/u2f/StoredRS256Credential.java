@@ -46,7 +46,7 @@ public class StoredRS256Credential extends StoredCredential {
         
     }
     @Override
-    public void getAttestedData(byte[] buf, short off) {
+    public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the RSAPublicKey
         byte[] mod = JCSystem.makeTransientByteArray((short) 256, JCSystem.CLEAR_ON_RESET);
@@ -55,30 +55,34 @@ public class StoredRS256Credential extends StoredCredential {
         ((RSAPublicKey) kp.getPublic()).getExponent(exp, (short) 0);
         // AAGUID
         Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
+        short len = 16;
         // Length of the credential ID - 16 bytes
-        buf[off+16] = 0x00;
-        buf[off+17] = 0x10;
+        buf[off+len++] = 0x00;
+        buf[off+len++] = 0x10;
         // Copy the credential ID
-        Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
+        Util.arrayCopy(id, (short) 0, buf, (short) (off+len), (short) 16);
+        len += 16;
         // Start the public key CBOR
         enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
+        len++;
         // kty - key type
-        enc.writeRawByte((byte) 0x01);
+        len += enc.writeRawByte((byte) 0x01);
         // RSA
-        enc.encodeUInt8((byte) 0x03);
+        len += enc.encodeUInt8((byte) 0x03);
         // alg
-        enc.writeRawByte((byte) 0x03);
+        len += enc.writeRawByte((byte) 0x03);
         // RS256 - -257 is 256 negative (minus 1 for neg on CBOR)
-        enc.encodeNegativeUInt16((short) 256);
+        len += enc.encodeNegativeUInt16((short) 256);
         // Modulus tag
-        enc.writeRawByte((byte) -1);
+        len += enc.writeRawByte((byte) -1);
         // Write the modulus
-        enc.encodeByteString(mod, (short) 0, (short) 256);
+        len += enc.encodeByteString(mod, (short) 0, (short) 256);
         // Exponent tag
-        enc.writeRawByte((byte) -2);
+        len += enc.writeRawByte((byte) -2);
         // Write the exponent
-        enc.encodeByteString(exp, (short) 0, (short) 3);
+        len += enc.encodeByteString(exp, (short) 0, (short) 3);
+        return len;
     }
     
 }

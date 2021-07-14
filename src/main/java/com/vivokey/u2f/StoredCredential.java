@@ -91,8 +91,9 @@ public abstract class StoredCredential {
      * Returns the attestation data (pubkey and definition) attached to this object.
      * @param buf buffer to copy the details to
      * @param off offset to begin copying to
+     * @returns length
      */
-    public abstract void getAttestedData(byte[] buf, short off);
+    public abstract short getAttestedData(byte[] buf, short off);
 
 
 }

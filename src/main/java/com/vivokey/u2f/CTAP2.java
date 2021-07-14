@@ -17,6 +17,7 @@
 
 package com.vivokey.u2f;
 
+import com.vivokey.u2f.CTAPObjects.AttestationKeyPair;
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
 import javacard.framework.APDU;
@@ -36,7 +37,7 @@ public class CTAP2 {
     private short[] vars;
     private CredentialArray discoverableCreds;
     private MessageDigest sha;
-    private U2FApplet app;
+    private AttestationKeyPair attestation;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -89,10 +90,16 @@ public class CTAP2 {
     private static final byte FIDO2_AUTHENTICATOR_CLIENT_PIN = (byte) 0x06;
     private static final byte FIDO2_AUTHENTICATOR_RESET = (byte) 0x07;
     // AAGUID - this uniquely identifies the type of authenticator we have built.
+    // If you're reusing this code, please generate your own GUID and put it here - this is unique to manufacturer and device model.
     public static final byte[] aaguid = {(byte) 0xd7, (byte) 0xa4, (byte) 0x23, (byte) 0xad, (byte) 0x3e, (byte) 0x19, (byte) 0x44, (byte) 0x92, (byte) 0x92, (byte) 0x00, (byte) 0x78, (byte) 0x13, (byte) 0x7d, (byte) 0xcc, (byte) 0xc1, (byte) 0x36};
-
+    private static final byte[] UTF8_FMT = {'f', 'm', 't'};
+    private static final byte[] UTF8_AUTHDATA = {'a', 'u', 't', 'h', 'D', 'a', 't', 'a'};
+    private static final byte[] UTF8_PACKED = {'p', 'a', 'c', 'k', 'e', 'd'};
+    private static final byte[] UTF8_SIG = {'s', 'i', 'g'};
+    private static final byte[] UTF8_X5C = {'x', '5', 'c'};
+    private static final byte[] UTF8_ATTSTMT = {'a', 't', 't', 'S', 't', 'm', 't'};
     
-    public CTAP2(U2FApplet attest) {
+    public CTAP2() {
 
         // 1200 bytes of a transient buffer for read-in and out
         inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
@@ -102,8 +109,8 @@ public class CTAP2 {
         cborDecoder = new CBORDecoder();
         cborEncoder = new CBOREncoder();
         discoverableCreds = new CredentialArray((short) 10);
-        app = attest;
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
+        attestation = new AttestationKeyPair();
 
     }
 
@@ -177,9 +184,70 @@ public class CTAP2 {
                 // Set the signature counter
                 residentCred.readCounter(scratch, (short) 33);
                 // Read the credential details in
-                // TODO: Finish - needs cred details.
-                // vars[0] = cborEncoder.encodeByteString(byteString, offset, length);
-                
+                vars[0] += residentCred.getAttestedData(scratch, (short) 37);
+                // Put it into the CBOR map
+                cborEncoder.encodeTextString(UTF8_AUTHDATA, (short) 0, (short) 8);
+                cborEncoder.encodeByteString(scratch, (short) 0, vars[0]);
+                // Attach the attestation statement format identifier
+                cborEncoder.encodeTextString(UTF8_FMT, (short) 0, (short) 3);
+                cborEncoder.encodeTextString(UTF8_PACKED, (short) 0, (short) 6);
+                // Generate and then attach the attestation format
+                cborEncoder.encodeTextString(UTF8_ATTSTMT, (short)0, (short) 7);
+                // First off create a byte array for the attestation packed array, as it can get kinda big. 
+                byte[] packed;
+                try {
+                    // Try and use RAM
+                    packed = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_RESET);
+                } catch (Exception e) {
+                    // Not enough RAM - use a non-transient array
+                    packed = new byte[1024];
+                }
+                // Create a second encoder to encode the packed attestation statement
+                CBOREncoder enc2 = new CBOREncoder();
+                enc2.init(packed, (short) 0, (short) 1024);
+                // Create a map with 3 things
+                vars[1] = enc2.startMap((short) 3);
+                // Add the alg label
+                vars[1] += enc2.encodeTextString(AuthenticatorMakeCredential.UTF8_ALG, (short) 0, (short) 3);
+                // Add the actual algorithm - -7 is 6 as a negative
+                vars[1] += enc2.encodeNegativeUInt8((byte) 6);
+                // Add the actual signature, we should generate this
+                vars[1] += enc2.encodeTextString(UTF8_SIG, (short) 0, (short) 3);
+                // The signature is over the scratch data, first, but with the client data appended
+                vars[0] += cred.getDataHash(scratch, vars[0]);
+                // Sign into the scratch buffer, but at vars[0] + 1
+                vars[2] = attestation.sign(scratch, (short) 0, vars[0], scratch, (short) (vars[0] + 1));
+                // Create a DER encoding, ffs
+                scratch[vars[0] + vars[2] + 1] = (byte) 0x30;
+                // Skip the next one, as it's length of total data - we'll make vars[3] this
+                vars[3] = 3;
+                // This one's 0x02 which is integer type
+                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x02;
+                // This is length of r, the first half of the signature - it'll always be 32 bytes due to signatures being 64
+                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x20;
+                // Copy r in
+                Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
+                vars[3] += 32;
+                // Set the type of s - integer
+                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x02;
+                // Set length of s - 32 bytes
+                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x20;
+                // Copy s in
+                Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
+                vars[3] += 32;
+                // Set the length of the data
+                scratch[vars[0] + vars[2] + 2] = (byte) vars[3];
+                // Set this into the encoder
+                enc2.encodeByteString(scratch, scratch[vars[0] + vars[2] + 1], (short) (vars[3] + 1));
+                // Set the x509 now
+                enc2.encodeTextString(UTF8_X5C, (short) 0, (short) 3);
+                enc2.encodeByteString(attestation.x509cert, (short) 0, (short) attestation.x509cert.length);
+                // Now set this whole array into the other CBOR
+                cborEncoder.encodeByteString(packed, (short) 0, (short) (enc2.getCurrentOffset() - 1));
+                // We're actually done, send this out
+                apdu.setOutgoing();
+                apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset() - 1));
+                apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
             }
         } catch (ISOException e) {
             // We redo ISOExceptions as a CBOR error

@@ -31,15 +31,15 @@ public class AuthenticatorMakeCredential {
     private PublicKeyCredentialParams params;
     private boolean[] options = new boolean[2];
     // Representation of "id" in UTF8
-    private static final byte[] UTF8_ID = {0x69, 0x64};
+    public static final byte[] UTF8_ID = {0x69, 0x64};
     // Representation of "name" in UTF8
-    private static final byte[] UTF8_NAME = {0x6e, 0x61, 0x6d, 0x65};
+    public static final byte[] UTF8_NAME = {0x6e, 0x61, 0x6d, 0x65};
     // Representation of "displayName" in UTF8
-    private static final byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
+    public static final byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
     // Representation of "alg" in UTF8
-    private static final byte[] UTF8_ALG = {0x61, 0x6c, 0x67};
-    private static final byte[] UTF8_UV = {0x75, 0x76};
-    private static final byte[] UTF8_RK = {0x72, 0x6b};
+    public static final byte[] UTF8_ALG = {0x61, 0x6c, 0x67};
+    public static final byte[] UTF8_UV = {0x75, 0x76};
+    public static final byte[] UTF8_RK = {0x72, 0x6b};
     private byte[] scratch1;
     private byte[] scratch2;
 
@@ -240,7 +240,16 @@ public class AuthenticatorMakeCredential {
         return params.getAlgorithm();
     }
 
-
+    /**
+     * Reads the clientDataHash into a buffer.
+     * @param outBuf The buffer to read into.
+     * @param outOff the offset to begin at.
+     * @return the length of the data read out.
+     */
+    public short getDataHash(byte[] outBuf, short outOff) {
+        System.arraycopy(dataHash, (short) 0, outBuf, outOff, dataHash.length);
+        return (short) dataHash.length;
+    }
 
 
 }
