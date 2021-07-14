@@ -160,7 +160,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
 
         fidoImpl = new FIDOStandalone();
-        ctapImpl = new CTAP2(this);
+        ctapImpl = new CTAP2();
     }
 
     private void handleSetAttestationCert(APDU apdu) throws ISOException {
