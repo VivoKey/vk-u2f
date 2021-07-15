@@ -18,6 +18,7 @@
 package com.vivokey.u2f;
 
 import com.vivokey.u2f.CTAPObjects.AttestationKeyPair;
+import com.vivokey.u2f.CTAPObjects.AuthenticatorGetAssertion;
 import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
 
 import javacard.framework.APDU;
@@ -172,7 +173,9 @@ public class CTAP2 {
                 // Add the credential to the resident storage, overwriting if necessary
                 addResident(apdu, buffer, residentCred);
                 // Initialise the output buffer, for CBOR writing.
-                cborEncoder.init(inBuf, (short) 0, (short) 1200);
+                // output buffer needs 0x00 as first byte as status code...
+                inBuf[0] = 0x00;
+                cborEncoder.init(inBuf, (short) 1, (short) 1200);
                 // Create a map in the buffer
                 vars[0] = cborEncoder.startMap((short) 3);
                 // Create the SHA256 hash of the RP ID
@@ -256,6 +259,18 @@ public class CTAP2 {
         
     }
 
+
+    public void authGetAssertion(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        try {
+            // Decode the CBOR array for the assertion
+            cborDecoder.init(inBuf, (short) 1, bufLen);
+            AuthenticatorGetAssertion assertion = new AuthenticatorGetAssertion(cborDecoder, vars);
+
+
+        } catch (Exception e) {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
+        }
+    }
     private void addResident(APDU apdu, byte[] buffer, StoredCredential cred) {
         // Add a Discoverable Credential (resident)
         try {
