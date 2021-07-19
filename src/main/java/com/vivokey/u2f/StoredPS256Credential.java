@@ -38,10 +38,10 @@ public class StoredPS256Credential extends StoredCredential {
         rp = inputData.getRp();
     }
     @Override
-    public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
+    public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         incrementCounter();
         // Increment sig counter first
-        kpSignature.sign(inBuf, inOff, inLen, outBuf, outOff);
+        return kpSignature.sign(inBuf, inOff, inLen, outBuf, outOff);
         
         
     }

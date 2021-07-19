@@ -104,5 +104,19 @@ public class CredentialArray {
         // Return the first free slot in the new array, which is going to be the counter plus 1
         return (short) (counter + (short) 1);
     }
-    
+    /**
+     * Get the size of the array.
+     * @return the array size
+     */
+    public short getLength() {
+        return size;
+    }
+    /**
+     * Returns the credential at position, or null if none.
+     * @param position the position to get.
+     * @return the credential, or null.
+     */
+    public StoredCredential getCred(short position) {
+        return creds[position];
+    }
 }

@@ -19,8 +19,8 @@ package com.vivokey.u2f.CTAPObjects;
 import javacard.framework.Util;
 
 public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
-    byte[] id;
-    DomString displayName;
+    public byte[] id;
+    public DomString displayName;
     
     public void setId(byte[] src, short off, short len) {
         id = new byte[len];

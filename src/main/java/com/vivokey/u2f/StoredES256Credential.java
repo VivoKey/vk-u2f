@@ -40,10 +40,10 @@ public class StoredES256Credential extends StoredCredential {
         rp = inputData.getRp();
     }
     @Override
-    public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
+    public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         // Performs the signature as per ES256 
-        sig.sign(inBuf, inOff, inLen, outBuf, outOff);
         incrementCounter();
+        return sig.sign(inBuf, inOff, inLen, outBuf, outOff);
         
     }
     @Override

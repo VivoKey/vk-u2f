@@ -38,10 +38,10 @@ public class StoredRS256Credential extends StoredCredential {
         rp = inputData.getRp();
     }
     @Override
-    public void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
+    public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         incrementCounter();
         // Increment sig counter first
-        kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);
+        return kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);
         
         
     }

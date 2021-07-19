@@ -86,7 +86,7 @@ public abstract class StoredCredential {
      * @param outBuf output buffer to sign into
      * @param outOff output buffer offset to begin writing at
      */
-    public abstract void performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff);
+    public abstract short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff);
     /**
      * Returns the attestation data (pubkey and definition) attached to this object.
      * @param buf buffer to copy the details to
@@ -94,6 +94,7 @@ public abstract class StoredCredential {
      * @returns length
      */
     public abstract short getAttestedData(byte[] buf, short off);
+
 
 
 }

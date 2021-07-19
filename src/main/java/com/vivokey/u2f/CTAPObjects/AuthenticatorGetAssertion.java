@@ -1,35 +1,98 @@
 package com.vivokey.u2f.CTAPObjects;
 
+import com.vivokey.u2f.CBORBase;
 import com.vivokey.u2f.CBORDecoder;
+import com.vivokey.u2f.CTAP2;
 
+import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
+import javacard.framework.Util;
 
 public class AuthenticatorGetAssertion {
-    byte[] rpId;
+    public byte[] rpId;
     byte[] clientDataHash;
     PublicKeyCredentialDescriptor[] allowList;
     boolean[] options;
 
-    public AuthenticatorGetAssertion(CBORDecoder decoder, short[] vars) {
-        // Read ID 1 in
-        decoder.readInt8();
-        // Read the byte string in
+    public AuthenticatorGetAssertion(CBORDecoder decoder) {
+
+        short[] vars;
+        try {
+            vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            vars = new short[8];
+        }
+        // Create options
+        options = new boolean[2];
+        // UP 
+        options[0] = true;
+        // UV
+        options[1] = false;
+        vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+        // Create scratch
         byte[] scratch;
         try {
             scratch = JCSystem.makeTransientByteArray((short) 64, JCSystem.MEMORY_TYPE_TRANSIENT_RESET);
         } catch (Exception e) {
             scratch = new byte[64];
         }
-        // Create the rpId storage
-        vars[0] = decoder.readByteString(scratch, (short) 0);
-        rpId = new byte[vars[0]];
-        // Copy to it
-        System.arraycopy(scratch, (short) 0, rpId, (short) 0, vars[0]);
-        // Do the same with the clientDataHash
-        decoder.readInt8();
-        decoder.readByteString(scratch, (short) 0);
-        clientDataHash = new byte[16];
-        System.arraycopy(scratch, (short) 0, clientDataHash, (short) 0, (short) 16);
-        // TODO: finish
+        for(vars[7] = 0; vars[7] < vars[0]; vars[7]++ ) {
+            vars[1] = decoder.readInt8();
+            switch(vars[1]) {
+                case 0x01:
+                    // RpId
+                    vars[2] = decoder.readByteString(scratch, (short) 0);
+                    rpId = new byte[vars[2]];
+                    // Copy to it
+                    System.arraycopy(scratch, (short) 0, rpId, (short) 0, vars[0]);
+                    break;
+                case 0x02:
+                    // clientDataHash
+                    vars[2] = decoder.readByteString(scratch, (short) 0);
+                    clientDataHash = new byte[vars[2]];
+                    System.arraycopy(scratch, (short) 0, clientDataHash, (short) 0, vars[2]);
+                    break;
+                case 0x05:
+                    // Options - two important things here
+                    vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
+                        // Read the text string
+                        vars[4] = decoder.readByteString(scratch, (short) 0);
+                        if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == 0) {
+                            // Is the UV param
+                            options[1] = decoder.readBoolean();
+                        } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
+                            // Is the UP param
+                            options[0] = decoder.readBoolean();
+                        }
+                    }
+                    break;
+                case 0x03:
+                    // allowList
+                    // We will need to assemble this
+                    // TODO: Given we're not fully specc'd yet, I haven't filled this in.
+                case 0x04:
+                    // Extensions - we mostly ignore
+                case 0x06:
+                    // Pin stuff
+                case 0x07:
+                    // Pin protocol
+                default:
+                    ISOException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            }
+
+        }
+        // We should check we have our "mandatory" options
+        if(rpId == null || clientDataHash == null) {
+            ISOException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
+        }
+        // Good to go I guess
+
     }
+
+    public short getHash(byte[] buf, short off) {
+        Util.arrayCopy(clientDataHash, (short) 0, buf, off, (short) clientDataHash.length);
+        return (short) clientDataHash.length;
+    }
+    
 }

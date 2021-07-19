@@ -23,23 +23,12 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
-
 public class AuthenticatorMakeCredential {
     private byte[] dataHash;
     private PublicKeyCredentialRpEntity rp;
     private PublicKeyCredentialUserEntity user;
     private PublicKeyCredentialParams params;
     private boolean[] options = new boolean[2];
-    // Representation of "id" in UTF8
-    public static final byte[] UTF8_ID = {0x69, 0x64};
-    // Representation of "name" in UTF8
-    public static final byte[] UTF8_NAME = {0x6e, 0x61, 0x6d, 0x65};
-    // Representation of "displayName" in UTF8
-    public static final byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
-    // Representation of "alg" in UTF8
-    public static final byte[] UTF8_ALG = {0x61, 0x6c, 0x67};
-    public static final byte[] UTF8_UV = {0x75, 0x76};
-    public static final byte[] UTF8_RK = {0x72, 0x6b};
     private byte[] scratch1;
     private byte[] scratch2;
 
@@ -48,7 +37,13 @@ public class AuthenticatorMakeCredential {
      * @param decoder the initialised decoder on the CBOR structure
      * @param vars a short array to store variables in
      */
-    public AuthenticatorMakeCredential(CBORDecoder decoder, short[] vars) {
+    public AuthenticatorMakeCredential(CBORDecoder decoder) {
+        short[] vars;
+        try {
+            vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            vars = new short[8];
+        }
         // Start reading, we should get a map
         scratch1 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
         scratch2 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
@@ -89,7 +84,7 @@ public class AuthenticatorMakeCredential {
                         // Read the text string in
                         decoder.readByteString(scratch1, (short) 0);
                         // Check if it equals id
-                        if(Util.arrayCompare(scratch1, (short)0, UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                        if(Util.arrayCompare(scratch1, (short)0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
                             // It does, so read its length
                             vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
@@ -98,7 +93,7 @@ public class AuthenticatorMakeCredential {
                             rp.setRp(scratch1, vars[1]);
                         } else 
                         // Check if it equals name, if not id
-                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_NAME, (short) 0, (short) 4) == (byte) 0) {
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0, (short) 4) == (byte) 0) {
                             // It does, so read its length
                             vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
@@ -125,7 +120,7 @@ public class AuthenticatorMakeCredential {
                         // Read the text string in
                         decoder.readByteString(scratch1, (short) 0);
                         // Check if it equals id
-                        if(Util.arrayCompare(scratch1, (short)0, UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                        if(Util.arrayCompare(scratch1, (short)0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
                             // It does, so read its length
                             vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
@@ -134,7 +129,7 @@ public class AuthenticatorMakeCredential {
                             user.setId(scratch1,(short) 0, vars[1]);
                         } else 
                         // Check if it equals name, if not id
-                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_NAME, (short) 0, (short) 4) == (byte) 0) {
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0, (short) 4) == (byte) 0) {
                             // It does, so read its length
                             vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
@@ -143,7 +138,7 @@ public class AuthenticatorMakeCredential {
                             user.setName(scratch1, vars[1]);
                         } else 
                         // Check if it equals displayName, if not those
-                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_DISPLAYNAME, (short) 0, (short) 11) == (byte) 0) {
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_DISPLAYNAME, (short) 0, (short) 11) == (byte) 0) {
                             // It does, so read its length
                             vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
@@ -168,7 +163,7 @@ public class AuthenticatorMakeCredential {
                         for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
                             vars[4] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             decoder.readByteString(scratch1, (short) 0);
-                            if(Util.arrayCompare(scratch1, (short) 0, UTF8_ALG, (short) 0, (short) 3) == (byte) 0) {
+                            if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0, (short) 3) == (byte) 0) {
                                 // Read the integer type (positive or negative)
                                 if(decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
                                     // Positive number
@@ -205,11 +200,11 @@ public class AuthenticatorMakeCredential {
                         // Parse the map
                         vars[2] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                         decoder.readByteString(scratch1, (short) 0);
-                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_UV, (short) 0, (short) 2) == (short) 0) {
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == (short) 0) {
                             // Is the user validation bit
                             options[1] = decoder.readBoolean();
                         }
-                        if(Util.arrayCompare(scratch1, (short) 0, UTF8_RK, (short) 0, (short) 2) == (short) 0) {
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0, (short) 2) == (short) 0) {
                             // Is the resident key bit
                             options[0] = decoder.readBoolean();
                         }
