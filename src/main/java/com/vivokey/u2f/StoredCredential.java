@@ -53,7 +53,7 @@ public abstract class StoredCredential {
 
         for(short i = 3; i > 1; i--) {
             if(sigCounter[i] == 0xFF) {
-                sigCounter[i-1]++;
+                sigCounter[(short) (i-1)]++;
                 sigCounter[i] = 0x00;
                 JCSystem.commitTransaction();
                 return;
