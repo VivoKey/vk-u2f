@@ -229,7 +229,7 @@ public class CTAP2 {
                 // Set length of s - 32 bytes
                 scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
                 // Copy s in
-                Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
+                Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])], (short) 32);
                 vars[3] += 32;
                 // Set the length of the data
                 scratch[(short) (vars[0] + vars[2] + 2)] = (byte) vars[3];
