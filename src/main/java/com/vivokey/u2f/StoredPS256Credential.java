@@ -55,8 +55,8 @@ public class StoredPS256Credential extends StoredCredential {
         Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
         short len = 16;
         // Length of the credential ID - 16 bytes
-        buf[off+len++] = 0x00;
-        buf[off+len++] = 0x10;
+        buf[(short) (off+len++)] = 0x00;
+        buf[(short) (off+len++)] = 0x10;
         // Copy the credential ID
         Util.arrayCopy(id, (short) 0, buf, (short) (off+len), (short) 16);
         len += 16;
