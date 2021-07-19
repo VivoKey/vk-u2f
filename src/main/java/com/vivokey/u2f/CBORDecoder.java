@@ -146,7 +146,7 @@ public class CBORDecoder extends CBORBase{
     public void readInt32(byte[] output, short offset) {
         final byte addInfo = (byte) (readRawByte() & ADDINFO_MASK);
         if (addInfo == ENCODED_FOUR_BYTES) {
-            Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 4), output, (short) (offset), (short) 4);
+            Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 4), output, offset, (short) 4);
         } else { 
             ISOException.throwIt(ISO7816.SW_DATA_INVALID);
         }
@@ -155,7 +155,7 @@ public class CBORDecoder extends CBORBase{
     public void readInt64(byte[] output, short offset) {
         final byte addInfo = (byte) (readRawByte() & ADDINFO_MASK);
         if (addInfo == ENCODED_EIGHT_BYTES) {
-            Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 8), output, (short) (offset), (short) 8);
+            Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 8), output, offset, (short) 8);
         } else { 
             ISOException.throwIt(ISO7816.SW_DATA_INVALID);
         }
@@ -167,7 +167,7 @@ public class CBORDecoder extends CBORBase{
             output[offset] = readInt8();
         } else {
             Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) (1 + size)), output,
-                    (short) (offset), (short) size);
+                    offset, size);
         }
         return (short) (size & 0xFF);
     }

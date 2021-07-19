@@ -26,13 +26,16 @@ import javacard.security.RandomData;
 
 // Abstract class to represent and perform actions with a stored credential
 public abstract class StoredCredential {
-    private static RandomData rng = RandomData.getInstance(RandomData.ALG_TRNG);
+    private static RandomData rng;
     byte[] id;
     KeyPair kp;
     PublicKeyCredentialUserEntity user;
     PublicKeyCredentialRpEntity rp;
     private byte[] sigCounter;
     protected StoredCredential() {
+        if(rng == null) {
+            rng = RandomData.getInstance(RandomData.ALG_TRNG);
+        }
         id = new byte[16];
         rng.nextBytes(id, (short) 0, (short) 16);
         sigCounter = new byte[4];
