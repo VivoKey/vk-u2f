@@ -1,5 +1,6 @@
 package com.vivokey.u2f;
 
+import javacard.framework.Util;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.Signature;
@@ -38,7 +39,7 @@ public class AttestationKeyPair {
      */
     public void setCert(byte[] inBuf, short inOff, short inLen) {
         x509cert = new byte[inLen];
-        System.arraycopy(inBuf, inOff, x509cert, (short) 0, inLen);
+        Util.arrayCopy(inBuf, inOff, x509cert, (short) 0, inLen);
     }
 
     /**
@@ -48,7 +49,7 @@ public class AttestationKeyPair {
      * @return the length of the certificate.
      */
     public short getCert(byte[] outBuf, short outOff) {
-        System.arraycopy(x509cert, (short) 0, outBuf, outOff, x509cert.length);
+        Util.arrayCopy(x509cert, (short) 0, outBuf, outOff,(short) x509cert.length);
         return (short) x509cert.length;
     }
 }
