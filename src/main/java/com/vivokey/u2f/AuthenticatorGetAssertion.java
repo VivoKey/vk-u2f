@@ -40,13 +40,13 @@ public class AuthenticatorGetAssertion {
                     vars[2] = decoder.readByteString(scratch, (short) 0);
                     rpId = new byte[vars[2]];
                     // Copy to it
-                    System.arraycopy(scratch, (short) 0, rpId, (short) 0, vars[0]);
+                    Util.arrayCopy(scratch, (short) 0, rpId, (short) 0, vars[0]);
                     break;
                 case 0x02:
                     // clientDataHash
                     vars[2] = decoder.readByteString(scratch, (short) 0);
                     clientDataHash = new byte[vars[2]];
-                    System.arraycopy(scratch, (short) 0, clientDataHash, (short) 0, vars[2]);
+                    Util.arrayCopy(scratch, (short) 0, clientDataHash, (short) 0, vars[2]);
                     break;
                 case 0x05:
                     // Options - two important things here
