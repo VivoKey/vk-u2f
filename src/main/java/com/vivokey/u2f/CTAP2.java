@@ -222,7 +222,7 @@ public class CTAP2 {
                 // This is length of r, the first half of the signature - it'll always be 32 bytes due to signatures being 64
                 scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
                 // Copy r in
-                Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
+                Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])], (short) 32);
                 vars[3] += 32;
                 // Set the type of s - integer
                 scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
