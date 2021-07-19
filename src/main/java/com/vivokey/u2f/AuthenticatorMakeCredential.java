@@ -239,7 +239,7 @@ public class AuthenticatorMakeCredential {
      * @return the length of the data read out.
      */
     public short getDataHash(byte[] outBuf, short outOff) {
-        System.arraycopy(dataHash, (short) 0, outBuf, outOff, dataHash.length);
+        Util.arrayCopy(dataHash, (short) 0, outBuf, outOff, (short) dataHash.length);
         return (short) dataHash.length;
     }
 
