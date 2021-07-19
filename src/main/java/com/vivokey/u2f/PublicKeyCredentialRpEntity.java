@@ -16,6 +16,8 @@
 */
 package com.vivokey.u2f;
 
+import javacard.framework.Util;
+
 public class PublicKeyCredentialRpEntity extends PublicKeyCredentialEntity {
     DomString rpId;
     
@@ -42,7 +44,7 @@ public class PublicKeyCredentialRpEntity extends PublicKeyCredentialEntity {
     }
 
     public void getRp(byte[] buf, short off) {
-        System.arraycopy(rpId.str, rpId.len, buf, off, rpId.len);
+        Util.arrayCopy(rpId.str, rpId.len, buf, off, rpId.len);
     }
     public short getRpLen() {
         return rpId.len;
