@@ -1,4 +1,4 @@
-package com.vivokey.u2f.CTAPObjects;
+package com.vivokey.u2f;
 
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;

@@ -1,8 +1,4 @@
-package com.vivokey.u2f.CTAPObjects;
-
-import com.vivokey.u2f.CBORBase;
-import com.vivokey.u2f.CBORDecoder;
-import com.vivokey.u2f.CTAP2;
+package com.vivokey.u2f;
 
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;

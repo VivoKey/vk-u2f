@@ -1,4 +1,4 @@
-package com.vivokey.u2f.CTAPObjects;
+package com.vivokey.u2f;
 
 public class Utf8Strings {
     public static final byte[] UTF8_UP = {'u', 'p'};

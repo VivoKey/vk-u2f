@@ -17,11 +17,6 @@
 
 package com.vivokey.u2f;
 
-import com.vivokey.u2f.CTAPObjects.AttestationKeyPair;
-import com.vivokey.u2f.CTAPObjects.AuthenticatorGetAssertion;
-import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
-import com.vivokey.u2f.CTAPObjects.Utf8Strings;
-
 import javacard.framework.APDU;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;

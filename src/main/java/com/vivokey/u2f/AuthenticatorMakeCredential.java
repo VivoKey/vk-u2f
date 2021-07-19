@@ -14,10 +14,7 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
-package com.vivokey.u2f.CTAPObjects;
-
-import com.vivokey.u2f.CBORBase;
-import com.vivokey.u2f.CBORDecoder;
+package com.vivokey.u2f;
 
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;

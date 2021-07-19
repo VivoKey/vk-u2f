@@ -16,8 +16,6 @@
 */
 package com.vivokey.u2f;
 
-import com.vivokey.u2f.CTAPObjects.AuthenticatorMakeCredential;
-
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.ECKey;

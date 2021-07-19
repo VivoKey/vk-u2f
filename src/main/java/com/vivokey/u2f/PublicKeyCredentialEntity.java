@@ -1,4 +1,4 @@
-package com.vivokey.u2f.CTAPObjects;
+package com.vivokey.u2f;
 
 // WebAuthn 5.4.1
 public abstract class PublicKeyCredentialEntity {

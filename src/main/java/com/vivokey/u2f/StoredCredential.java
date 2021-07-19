@@ -16,9 +16,6 @@
 */
 package com.vivokey.u2f;
 
-import com.vivokey.u2f.CTAPObjects.PublicKeyCredentialRpEntity;
-import com.vivokey.u2f.CTAPObjects.PublicKeyCredentialUserEntity;
-
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.KeyPair;
