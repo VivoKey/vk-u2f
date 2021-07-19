@@ -214,27 +214,27 @@ public class CTAP2 {
                 // Sign into the scratch buffer, but at vars[0] + 1
                 vars[2] = attestation.sign(scratch, (short) 0, vars[0], scratch, (short) (vars[0] + 1));
                 // Create a DER encoding, ffs
-                scratch[vars[0] + vars[2] + 1] = (byte) 0x30;
+                scratch[(short) (vars[0] + vars[2] + 1)] = (byte) 0x30;
                 // Skip the next one, as it's length of total data - we'll make vars[3] this
                 vars[3] = 3;
                 // This one's 0x02 which is integer type
-                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x02;
+                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
                 // This is length of r, the first half of the signature - it'll always be 32 bytes due to signatures being 64
-                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x20;
+                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
                 // Copy r in
                 Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
                 vars[3] += 32;
                 // Set the type of s - integer
-                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x02;
+                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
                 // Set length of s - 32 bytes
-                scratch[vars[0] + vars[2] + vars[3]++] = (byte) 0x20;
+                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
                 // Copy s in
                 Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[vars[0] + vars[2] + vars[3]], (short) 32);
                 vars[3] += 32;
                 // Set the length of the data
-                scratch[vars[0] + vars[2] + 2] = (byte) vars[3];
+                scratch[(short) (vars[0] + vars[2] + 2)] = (byte) vars[3];
                 // Set this into the encoder
-                enc2.encodeByteString(scratch, scratch[vars[0] + vars[2] + 1], (short) (vars[3] + 1));
+                enc2.encodeByteString(scratch, scratch[(short) (vars[0] + vars[2] + 1)], (short) (vars[3] + 1));
                 // Set the x509 now
                 enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
                 enc2.encodeByteString(attestation.x509cert, (short) 0, (short) attestation.x509cert.length);
