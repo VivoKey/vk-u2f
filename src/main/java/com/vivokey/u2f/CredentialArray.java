@@ -91,8 +91,8 @@ public class CredentialArray {
             tmp[counter] = creds[counter];
             tmpStatus[counter] = slotStatus[counter];
         }
-        creds = new StoredCredential[size*2];
-        slotStatus = new boolean[size*2];
+        creds = new StoredCredential[(short) (size*2)];
+        slotStatus = new boolean[(short) (size*2)];
         for(counter = 0; counter < size; counter++) {
             creds[counter] = tmp[counter];
             slotStatus[counter] = tmpStatus[counter];
