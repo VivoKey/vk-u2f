@@ -42,8 +42,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private FIDOAPI fidoImpl;
     private CTAP2 ctapImpl;
 
-    private static final byte VERSION[] = { 'U', '2', 'F', '_', 'V', '2' };
-
     private static final byte FIDO_INS_ENROLL = (byte)0x01;
     private static final byte FIDO_INS_SIGN = (byte)0x02;
     private static final byte FIDO_INS_VERSION = (byte)0x03;
@@ -393,8 +391,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
     private void handleVersion(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
-        Util.arrayCopyNonAtomic(VERSION, (short)0, buffer, (short)0, (short)VERSION.length);
-        apdu.setOutgoingAndSend((short)0, (short)VERSION.length);
+        Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
+        apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
     }
 
     private void handleGetData(APDU apdu) throws ISOException {
@@ -479,8 +477,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
             if (attestationCertificateSet) {
-                Util.arrayCopyNonAtomic(VERSION, (short)0, buffer, (short)0, (short)VERSION.length);
-                apdu.setOutgoingAndSend((short)0, (short)VERSION.length);
+                Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
+                apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
             }
             return;
         }

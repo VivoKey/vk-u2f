@@ -35,6 +35,7 @@ public class CTAP2 {
     private CredentialArray discoverableCreds;
     private MessageDigest sha;
     private AttestationKeyPair attestation;
+    private byte[] info;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -102,6 +103,7 @@ public class CTAP2 {
         discoverableCreds = new CredentialArray((short) 10);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
+        
 
     }
 
@@ -137,6 +139,8 @@ public class CTAP2 {
                     break;
                 case FIDO2_AUTHENTICATOR_GET_ASSERTION:
                     authGetAssertion(apdu, buffer, inBuf, vars[3]);
+                case FIDO2_AUTHENTICATOR_GET_INFO:
+                    authGetInfo(apdu, buffer, inBuf, vars[3]);
                 default:
                     returnError(apdu, buffer, CTAP2_ERR_OPERATION_DENIED);
         }
@@ -384,5 +388,56 @@ public class CTAP2 {
         buffer[0] = err;
         apdu.setOutgoingAndSend((short) 0, (short) 1);
     }
-
+    /**
+     * Get authenticator-specific informtion, and return it to the platform.
+     * @param apdu
+     * @param buffer
+     * @param inBuf
+     * @param bufLen
+     */
+    public void authGetInfo(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        // Create the authenticator info if not present.
+        if(info == null) {
+            // Create the authGetInfo - 0x00 is success
+            inBuf[0] = 0x00;
+            cborEncoder.init(inBuf, (short) 1, (short) 1199);
+            cborEncoder.startMap((short) 4);
+            // 0x01, versions
+            cborEncoder.encodeUInt8((byte) 0x01);
+            // Value is an array of strings
+            cborEncoder.startArray((short) 2);
+            // Type 1, FIDO2
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_FIDO2, (short) 0, (short) 8);
+            // Type 2, U2F
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_U2F, (short) 0, (short) 6);
+            // AAGUID, 0x03
+            cborEncoder.encodeUInt8((byte) 0x03);
+            cborEncoder.encodeByteString(aaguid, (short) 0, (short) 16);
+            // Options, 0x04
+            cborEncoder.encodeUInt8((byte) 0x04);
+            // Map of 3
+            cborEncoder.startMap((short) 3);
+            // Rk
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_RK, (short) 0, (short) 2);
+            cborEncoder.encodeBoolean(true);
+            // UP
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_UP, (short) 0, (short) 2);
+            cborEncoder.encodeBoolean(true);
+            // UV
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_UV, (short) 0, (short) 2);
+            cborEncoder.encodeBoolean(true);
+            // Max msg size, 0x05
+            cborEncoder.encodeUInt8((byte) 0x05);
+            cborEncoder.encodeUInt16((short) 1200);
+            // Done
+            JCSystem.beginTransaction();
+            info = new byte[(short) (cborEncoder.getCurrentOffset() - 1)];
+            Util.arrayCopy(inBuf, (short) 0, info, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
+            JCSystem.commitTransaction();
+        }
+        // Send it
+        apdu.setOutgoing();
+        apdu.setOutgoingLength((short) info.length);
+        apdu.sendBytesLong(info, (short) 0, (short) info.length);
+    }
 }

@@ -20,5 +20,7 @@ public class Utf8Strings {
     public static final byte[] UTF8_X5C = {'x', '5', 'c'};
     public static final byte[] UTF8_ATTSTMT = {'a', 't', 't', 'S', 't', 'm', 't'};
     public static final byte[] UTF8_PUBLIC_KEY = {'p', 'u', 'b', 'l', 'i', 'c', '-', 'k', 'e', 'y'};
+    public static final byte[] UTF8_FIDO2 = {'F', 'I', 'D', 'O', '_', '2', '_', '0'};
+    public static final byte[] UTF8_U2F = { 'U', '2', 'F', '_', 'V', '2' };
     
 }
