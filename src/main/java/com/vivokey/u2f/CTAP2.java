@@ -36,6 +36,9 @@ public class CTAP2 {
     private MessageDigest sha;
     private AttestationKeyPair attestation;
     private byte[] info;
+    private StoredCredential[] assertionCreds;
+    private short[] nextAssertion;
+    AuthenticatorGetAssertion assertion;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -103,6 +106,7 @@ public class CTAP2 {
         discoverableCreds = new CredentialArray((short) 10);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
+        nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
         
 
     }
@@ -141,6 +145,8 @@ public class CTAP2 {
                     authGetAssertion(apdu, buffer, inBuf, vars[3]);
                 case FIDO2_AUTHENTICATOR_GET_INFO:
                     authGetInfo(apdu, buffer, inBuf, vars[3]);
+                case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
+                    authGetNextAssertion(apdu, buffer, inBuf, vars[3]);
                 default:
                     returnError(apdu, buffer, CTAP2_ERR_OPERATION_DENIED);
         }
@@ -261,18 +267,18 @@ public class CTAP2 {
         try {
             // Decode the CBOR array for the assertion
             cborDecoder.init(inBuf, (short) 1, bufLen);
-            AuthenticatorGetAssertion assertion = new AuthenticatorGetAssertion(cborDecoder);
+            assertion = new AuthenticatorGetAssertion(cborDecoder);
             // Match the assertion to the credential
             // Get a list of matching credentials
-            StoredCredential[] matchedCreds = findCredentials(apdu, buffer, assertion);
+            assertionCreds = findCredentials(apdu, buffer, assertion);
             // Use the first one; this complies with both ideas - use the most recent match if no allow list, use any if an allow list existed
-            if(matchedCreds[0] == null) {
+            if(assertionCreds[0] == null) {
                 returnError(apdu, buffer, CTAP2_ERR_NO_CREDENTIALS);
             }
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
             scratch[32] = 0x05;
-            matchedCreds[0].readCounter(scratch, (short) 33);
+            assertionCreds[0].readCounter(scratch, (short) 33);
             // Copy the hash in
             vars[2] = assertion.getHash(scratch, (short) 37);
             // Create the output
@@ -282,57 +288,52 @@ public class CTAP2 {
             // Create the encoder
             cborEncoder.init(inBuf, (short) 1, (short) 1199);
             // Determine if we need 4 or 5 in the array
-            if(matchedCreds.length > 1) {
-                cborEncoder.startMap((short) 5);
+            if(assertionCreds.length > 1) {
+                doAssertionCommon(cborEncoder, (short) 5);
             } else {
-                cborEncoder.startMap((short) 4);
+                doAssertionCommon(cborEncoder, (short) 4);
             }
-            // Tag 1, credential data
-            cborEncoder.encodeUInt8((byte) 0x01);
-            // Start a map, which is all the PublicKeyCredentialDescriptor is
-            cborEncoder.startMap((short) 2);
-            // Put the key for the type
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_TYPE, (short) 0, (short) 4);
-            // Put the value
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10);
-            // Put the id key
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
-            // Put the value, which is a byte array
-            cborEncoder.encodeByteString(matchedCreds[0].id, (short) 0, (short) matchedCreds[0].id.length);
-            // Done with tag 1
-            cborEncoder.encodeUInt8((byte) 0x02);
-            // Tag 2, which is the Authenticator bindings data
-            cborEncoder.encodeByteString(scratch, (short) 0, (short) (vars[2] + 36));
-            // Tag 3, the signature of said data.
-            // Sign the data 
-            vars[3] = matchedCreds[0].performSignature(scratch, (short) 0, (short) (vars[2] + 36), scratch, (short) (vars[2] + 37));
-            // Put the tag in
-            cborEncoder.encodeUInt8((byte) 0x03);
-            // Put the data in
-            cborEncoder.encodeByteString(scratch, (short) (vars[2]+37), vars[3]);
-            // Tag 4, user details
-            cborEncoder.encodeUInt8((byte) 0x04);
-            // Start the PublicKeyCredentialUserEntity map
-            cborEncoder.startMap((short) 3);
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
-            cborEncoder.encodeByteString(matchedCreds[0].user.id, (short) 0, (short) matchedCreds[0].user.id.length);
-            // The displayName
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_DISPLAYNAME, (short) 0, (short) 11);
-            cborEncoder.encodeTextString(matchedCreds[0].user.displayName.str, (short) 0, matchedCreds[0].user.displayName.len);
-            // The name
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_NAME, (short) 0, (short) 4);
-            cborEncoder.encodeTextString(matchedCreds[0].user.name.str, (short) 0, matchedCreds[0].user.name.len);
-            // Done tag 4
-            if(matchedCreds.length > 1) {
-                // Tag 5
-                cborEncoder.encodeUInt8((byte) 0x05);
-                cborEncoder.encodeUInt8((byte) matchedCreds.length);
-            }
+            nextAssertion[0] = (short) 1;
             // Emit this as a response
             apdu.setOutgoing();
             apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset()-1));
             apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset()-1));
 
+        } catch (Exception e) {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
+        }
+    }
+    /**
+     * Get the next assertion in a list of multiple.
+     * @param apdu
+     * @param buffer
+     * @param inBuf
+     * @param inLen
+     */
+    private void authGetNextAssertion(APDU apdu, byte[] buffer, byte[] inBuf, short inLen) {
+        try {
+            // Confirm that we have more assertions to do
+            if(nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
+                // Create the authenticatorData to sign
+                sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+                scratch[32] = 0x05;
+                assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
+                // Copy the hash in
+                vars[2] = assertion.getHash(scratch, (short) 37);
+                // Create the output
+
+                // Status flags first
+                inBuf[0] = 0x00;
+                // Create the encoder
+                cborEncoder.init(inBuf, (short) 1, (short) 1199);
+                doAssertionCommon(cborEncoder, (short) 4);
+
+                nextAssertion[0]++;
+                // Emit this as a response
+                apdu.setOutgoing();
+                apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset()-1));
+                apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset()-1));
+            }
         } catch (Exception e) {
             returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
         }
@@ -439,5 +440,56 @@ public class CTAP2 {
         apdu.setOutgoing();
         apdu.setOutgoingLength((short) info.length);
         apdu.sendBytesLong(info, (short) 0, (short) info.length);
+    }
+    private void doAssertionCommon(CBOREncoder enc, short mapLen) {
+        // Determine if we need 4 or 5 in the array
+        if(mapLen == 4) {
+            enc.startMap((short) 4);
+        } else {
+            enc.startMap((short) 5);
+        }
+        
+
+        // Tag 1, credential data
+        enc.encodeUInt8((byte) 0x01);
+        // Start a map, which is all the PublicKeyCredentialDescriptor is
+        enc.startMap((short) 2);
+        // Put the key for the type
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_TYPE, (short) 0, (short) 4);
+        // Put the value
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10);
+        // Put the id key
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
+        // Put the value, which is a byte array
+        cborEncoder.encodeByteString(assertionCreds[nextAssertion[0]].id, (short) 0, (short) assertionCreds[nextAssertion[0]].id.length);
+        // Done with tag 1
+        cborEncoder.encodeUInt8((byte) 0x02);
+        // Tag 2, which is the Authenticator bindings data
+        cborEncoder.encodeByteString(scratch, (short) 0, (short) (vars[2] + 36));
+        // Tag 3, the signature of said data.
+        // Sign the data 
+        vars[3] = assertionCreds[0].performSignature(scratch, (short) 0, (short) (vars[2] + 36), scratch, (short) (vars[2] + 37));
+        // Put the tag in
+        cborEncoder.encodeUInt8((byte) 0x03);
+        // Put the data in
+        cborEncoder.encodeByteString(scratch, (short) (vars[2]+37), vars[3]);
+        // Tag 4, user details
+        cborEncoder.encodeUInt8((byte) 0x04);
+        // Start the PublicKeyCredentialUserEntity map
+        cborEncoder.startMap((short) 3);
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
+        cborEncoder.encodeByteString(assertionCreds[nextAssertion[0]].user.id, (short) 0, (short) assertionCreds[nextAssertion[0]].user.id.length);
+        // The displayName
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_DISPLAYNAME, (short) 0, (short) 11);
+        cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.displayName.str, (short) 0, assertionCreds[nextAssertion[0]].user.displayName.len);
+        // The name
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_NAME, (short) 0, (short) 4);
+        cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.name.str, (short) 0, assertionCreds[nextAssertion[0]].user.name.len);
+        // Done tag 4
+        if(mapLen == 5) {
+            cborEncoder.encodeUInt8((byte) 0x05);
+            cborEncoder.encodeUInt8((byte) assertionCreds.length);
+        }
+
     }
 }
