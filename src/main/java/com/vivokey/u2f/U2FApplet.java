@@ -2,7 +2,8 @@
 *******************************************************************************
 *   FIDO U2F Authenticator
 *   (c) 2015 Ledger
-*   with U2F v2 changes (c) VivoKey Technologies
+*   with U2F v2 changes 
+*   (c) 2021 VivoKey Technologies
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
