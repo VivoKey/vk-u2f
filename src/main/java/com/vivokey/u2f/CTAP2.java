@@ -170,7 +170,7 @@ public class CTAP2 {
                     persoComplete(apdu, buffer, inBuf, vars[3]);
 
                 default:
-                    returnError(apdu, buffer, CTAP2_ERR_OPERATION_DENIED);
+                    returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
     }
     public void persoComplete(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
@@ -178,7 +178,7 @@ public class CTAP2 {
             persoComplete = true;
             returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
         } else {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
     }
 
@@ -204,13 +204,13 @@ public class CTAP2 {
             apdu.setOutgoingLength((short) (vars[2] + 1));
             apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
         } else {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
     }
 
     public void attestSetCert(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
         if(persoComplete) {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
         // We don't actually use any CBOR here, simplify copying
         attestation.setCert(inBuf, (short) 1, (short) (bufLen -1));
