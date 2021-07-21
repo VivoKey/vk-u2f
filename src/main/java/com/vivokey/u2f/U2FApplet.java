@@ -94,11 +94,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
 
     // Parameters
-    // 1 byte : flags
+    // None
     public U2FApplet(byte[] parameters, short parametersOffset, byte parametersLength) {
-        if (parametersLength != 1) {
-            ISOException.throwIt(ISO7816.SW_WRONG_DATA);
-        }
 
         // Initialize with 8 counters.
         counters = new Counter[] {
@@ -133,13 +130,10 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
         localSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
 
-        flags = parameters[parametersOffset];
+        flags = 0x01;
 
-        if ((flags & INSTALL_FLAG_DISABLE_USER_PRESENCE) == 0) {
-            presence = new OneShotPresence();
-        } else {
-            presence = new NullPresence();
-        }
+        presence = new OneShotPresence();
+        
         ctapImpl = new CTAP2();
         // Modified attestation to use the CTAP2 one - Riley
 
