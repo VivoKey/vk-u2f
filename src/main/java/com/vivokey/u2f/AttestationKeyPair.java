@@ -47,6 +47,10 @@ public class AttestationKeyPair {
     public short sign(byte[] inBuf, short inOff, short inLen, byte[] sigBuf, short sigOff) {
         return sig.sign(inBuf, inOff, inLen, sigBuf, sigOff);
     }
+
+    public void update(byte[] inBuf, short inOff, short inLen) {
+        sig.update(inBuf, inOff, inLen);
+    }
     /**
      * Sets the attestation certificate. 
      * @param inBuf buffer to read from

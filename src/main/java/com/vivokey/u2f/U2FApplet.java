@@ -33,11 +33,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private byte flags;
     private Presence presence;
     private byte[] scratch;
-    private byte[] attestationCertificate;
-    private boolean attestationCertificateSet;
     private ECPrivateKey localPrivateKey;
     private boolean localPrivateTransient;
-    private Signature attestationSignature;
     private Signature localSignature;
     private FIDOAPI fidoImpl;
     private CTAP2 ctapImpl;
@@ -49,8 +46,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte)0x10;
 
     private static final byte FIDO_INS_RESET_ATTEST = (byte)0x55;
-
-    private static final byte FIDO_ADM_SET_ATTESTATION_CERT = (byte)0x01;
 
     private static final byte SCRATCH_TRANSPORT_STATE = (byte)0;
     private static final byte SCRATCH_CURRENT_OFFSET = (byte)1;
@@ -100,10 +95,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
     // Parameters
     // 1 byte : flags
-    // 2 bytes big endian short : length of attestation certificate
-    // 32 bytes : private attestation key
     public U2FApplet(byte[] parameters, short parametersOffset, byte parametersLength) {
-        if (parametersLength != 35) {
+        if (parametersLength != 1) {
             ISOException.throwIt(ISO7816.SW_WRONG_DATA);
         }
 
@@ -138,7 +131,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
             }
         }
 
-        attestationSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         localSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
 
         flags = parameters[parametersOffset];
@@ -148,95 +140,12 @@ public class U2FApplet extends Applet implements ExtendedLength {
         } else {
             presence = new NullPresence();
         }
-
-        attestationCertificate = new byte[Util.getShort(parameters, (short)(parametersOffset + 1))];
-
-        // Set up our attestation signature object.
-        ECPrivateKey attestationPrivateKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
-        Secp256r1.setCommonCurveParameters(attestationPrivateKey);
-        attestationPrivateKey.setS(parameters, (short)(parametersOffset + 3), (short)32);
-        attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
+        ctapImpl = new CTAP2();
+        // Modified attestation to use the CTAP2 one - Riley
 
         fidoImpl = new FIDOStandalone();
-        ctapImpl = new CTAP2();
     }
 
-    private void handleSetAttestationCert(APDU apdu) throws ISOException {
-        byte[] buffer = apdu.getBuffer();
-        short len = apdu.setIncomingAndReceive();
-        short dataOffset = apdu.getOffsetCdata();
-        short copyOffset = Util.makeShort(buffer[ISO7816.OFFSET_P1], buffer[ISO7816.OFFSET_P2]);
-        if ((short)(copyOffset + len) > (short)attestationCertificate.length) {
-            ISOException.throwIt(ISO7816.SW_WRONG_DATA);
-        }
-        Util.arrayCopy(buffer, dataOffset, attestationCertificate, copyOffset, len);
-        if ((short)(copyOffset + len) == (short)attestationCertificate.length) {
-            attestationCertificateSet = true;
-        }
-    }
-
-    private static boolean isProtocolContactless(byte protocol) {
-        switch ((byte) (protocol & APDU.PROTOCOL_MEDIA_MASK)) {
-            case APDU.PROTOCOL_MEDIA_CONTACTLESS_TYPE_A:
-            case APDU.PROTOCOL_MEDIA_CONTACTLESS_TYPE_B:
-            case -80: // APDU.PROTOCOL_MEDIA_CONTACTLESS_TYPE_F
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    // Typical calibration values:
-    //
-    //  * J3R3xx: 24
-    //  * J3H145: 19
-    //
-    private static final byte securityDelayCalibration = 19;
-    private void securityDelay(short ds) {
-        // Busy work.
-        for (; ds != 0 ; ds--) {
-			for (byte i1 = securityDelayCalibration; i1 != 0 ; i1--) {
-				for (byte i2 = (byte)0x80; i2 != 0 ; i2--) {
-				}
-			}
-        }
-    }
-
-    private void handleResetAttest(APDU apdu) {
-        if ((flags & INSTALL_FLAG_ALLOW_RESET_ATTEST) == 0) {
-            ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
-        }
-
-        byte[] buffer = apdu.getBuffer();
-        short len = apdu.setIncomingAndReceive();
-        short dataOffset = apdu.getOffsetCdata();
-
-        if (len != 34) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-        }
-
-        if (isProtocolContactless(APDU.getProtocol())) {
-            // Force a delay of 10 seconds.
-            securityDelay((short)100);
-        }
-
-        JCSystem.beginTransaction();
-        short certLen = Util.getShort(buffer, dataOffset);
-        if (certLen != (short) attestationCertificate.length) {
-            attestationCertificate = new byte[Util.getShort(buffer, dataOffset)];
-        }
-        attestationCertificateSet = false;
-
-        // Set up our attestation signature object.
-        ECPrivateKey attestationPrivateKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
-        Secp256r1.setCommonCurveParameters(attestationPrivateKey);
-        attestationPrivateKey.setS(buffer, (short) (dataOffset + 2), (short) 32);
-        attestationSignature.init(attestationPrivateKey, Signature.MODE_SIGN);
-        
-        JCSystem.commitTransaction();
-
-        JCSystem.requestObjectDeletion();
-    }
 
     private void handleEnroll(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
@@ -267,22 +176,23 @@ public class U2FApplet extends Applet implements ExtendedLength {
         scratch[SCRATCH_KEY_HANDLE_LENGTH_OFFSET] = (byte)keyHandleLength;
 
         // Prepare the attestation
-        attestationSignature.update(RFU_ENROLL_SIGNED_VERSION, (short)0, (short)1);
-        attestationSignature.update(buffer, (short)(dataOffset + APDU_APPLICATION_PARAMETER_OFFSET), (short)32);
-        attestationSignature.update(buffer, (short)(dataOffset + APDU_CHALLENGE_OFFSET), (short)32);
-        attestationSignature.update(scratch, SCRATCH_KEY_HANDLE_OFFSET, keyHandleLength);
-        attestationSignature.update(scratch, SCRATCH_PUBLIC_KEY_OFFSET, (short)65);
+        
+        ctapImpl.attestation.update(RFU_ENROLL_SIGNED_VERSION, (short)0, (short)1);
+        ctapImpl.attestation.update(buffer, (short)(dataOffset + APDU_APPLICATION_PARAMETER_OFFSET), (short)32);
+        ctapImpl.attestation.update(buffer, (short)(dataOffset + APDU_CHALLENGE_OFFSET), (short)32);
+        ctapImpl.attestation.update(scratch, SCRATCH_KEY_HANDLE_OFFSET, keyHandleLength);
+        ctapImpl.attestation.update(scratch, SCRATCH_PUBLIC_KEY_OFFSET, (short)65);
 
-        short signatureSize = attestationSignature.sign(buffer, (short)0, (short)0, scratch, SCRATCH_SIGNATURE_OFFSET);
+        short signatureSize = ctapImpl.attestation.sign(buffer, (short)0, (short)0, scratch, SCRATCH_SIGNATURE_OFFSET);
         short outOffset = (short)(ENROLL_PUBLIC_KEY_OFFSET + 65 + 1 + keyHandleLength);
 
         if (extendedLength) {
             // If using extended length, the message can be completed and sent immediately
             scratch[SCRATCH_TRANSPORT_STATE] = TRANSPORT_EXTENDED;
             apdu.setOutgoing();
-            apdu.setOutgoingLength((short)(outOffset + attestationCertificate.length + signatureSize));
+            apdu.setOutgoingLength((short)(outOffset + ctapImpl.attestation.x509cert.length + signatureSize));
             apdu.sendBytesLong(scratch, SCRATCH_PAD, outOffset);
-            apdu.sendBytesLong(attestationCertificate, (short)0, (short)attestationCertificate.length);
+            apdu.sendBytesLong(ctapImpl.attestation.x509cert, (short)0, (short) ctapImpl.attestation.x509cert.length);
             apdu.sendBytesLong(scratch, SCRATCH_SIGNATURE_OFFSET, signatureSize);
         }
         else {
@@ -291,7 +201,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
             Util.setShort(scratch, SCRATCH_CURRENT_OFFSET, (short)0);
             Util.setShort(scratch, SCRATCH_SIGNATURE_LENGTH, signatureSize);
             Util.setShort(scratch, SCRATCH_NONCERT_LENGTH, outOffset);
-            Util.setShort(scratch, SCRATCH_FULL_LENGTH, (short)(outOffset + attestationCertificate.length + signatureSize));
+            Util.setShort(scratch, SCRATCH_FULL_LENGTH, (short)(outOffset + ctapImpl.attestation.x509cert.length + signatureSize));
             scratch[SCRATCH_INCLUDE_CERT] = (byte)1;
             handleGetData(apdu);
         }
@@ -436,12 +346,12 @@ public class U2FApplet extends Applet implements ExtendedLength {
             }
         }
         if ((scratch[SCRATCH_TRANSPORT_STATE] == TRANSPORT_NOT_EXTENDED_CERT) && (requestedSize != (short)0)) {
-            short blockSize = ((short)(attestationCertificate.length - currentOffset) > requestedSize ? requestedSize : (short)(attestationCertificate.length - currentOffset));
-            Util.arrayCopyNonAtomic(attestationCertificate, currentOffset, buffer, outOffset, blockSize);
+            short blockSize = ((short)(ctapImpl.attestation.x509cert.length - currentOffset) > requestedSize ? requestedSize : (short)(ctapImpl.attestation.x509cert.length - currentOffset));
+            Util.arrayCopyNonAtomic(ctapImpl.attestation.x509cert, currentOffset, buffer, outOffset, blockSize);
             outOffset += blockSize;
             currentOffset += blockSize;
             fullLength -= blockSize;
-            if (currentOffset == (short)attestationCertificate.length) {
+            if (currentOffset == (short)ctapImpl.attestation.x509cert.length) {
                 if (Util.getShort(scratch, SCRATCH_SIGNATURE_LENGTH) != (short)0) {
                     scratch[SCRATCH_TRANSPORT_STATE] = TRANSPORT_NOT_EXTENDED_SIGNATURE;
                     currentOffset = (short)0;
@@ -476,26 +386,15 @@ public class U2FApplet extends Applet implements ExtendedLength {
     public void process(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
-            if (attestationCertificateSet) {
+            if (ctapImpl.attestation.isCertSet()) {
                 Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
                 apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
             }
             return;
         }
 
-        if (!attestationCertificateSet) {
-            if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80
-                    && buffer[ISO7816.OFFSET_INS] == FIDO_ADM_SET_ATTESTATION_CERT
-            ) {
-                handleSetAttestationCert(apdu);
-            } else if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x00
-                    && buffer[ISO7816.OFFSET_INS] == FIDO_INS_RESET_ATTEST
-            ) {
-                handleResetAttest(apdu);
-            } else {
-                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
-            }
-            return;
+        if (!ctapImpl.attestation.isCertSet()) {
+            ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         }
 
         if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
@@ -519,8 +418,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
                     handleGetData(apdu);
                     break;
                 case FIDO_INS_RESET_ATTEST:
-                    handleResetAttest(apdu);
-                    break;
                 default:
                     ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
             }

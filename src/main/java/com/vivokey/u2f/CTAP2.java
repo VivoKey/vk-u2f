@@ -34,7 +34,7 @@ public class CTAP2 {
     private short[] vars;
     private CredentialArray discoverableCreds;
     private MessageDigest sha;
-    private AttestationKeyPair attestation;
+    public AttestationKeyPair attestation;
     private byte[] info;
     private StoredCredential[] assertionCreds;
     private short[] nextAssertion;
