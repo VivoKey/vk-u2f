@@ -25,12 +25,10 @@ import javacard.security.*;
 import javacardx.apdu.ExtendedLength;
 
 public class U2FApplet extends Applet implements ExtendedLength {
-    private static final byte COUNTER_COUNT = 8;
     private static final byte COUNTER_MASK = 7;
 
     private Counter[] counters;
     private byte next_counter;
-    private byte flags;
     private Presence presence;
     private byte[] scratch;
     private ECPrivateKey localPrivateKey;
@@ -78,16 +76,10 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte RFU_ENROLL_SIGNED_VERSION[] = { (byte)0x00 };
 
     private static final short ENROLL_PUBLIC_KEY_OFFSET = (short)1;
-    private static final short ENROLL_KEY_HANDLE_LENGTH_OFFSET = (short)66;
-    private static final short ENROLL_KEY_HANDLE_OFFSET = (short)67;
     private static final short APDU_CHALLENGE_OFFSET = (short)0;
     private static final short APDU_APPLICATION_PARAMETER_OFFSET = (short)32;
 
     private static final short FIDO_SW_TEST_OF_PRESENCE_REQUIRED = ISO7816.SW_CONDITIONS_NOT_SATISFIED;
-    private static final short FIDO_SW_INVALID_KEY_HANDLE = ISO7816.SW_WRONG_DATA;
-
-    private static final byte INSTALL_FLAG_DISABLE_USER_PRESENCE = (byte)0x01;
-    private static final byte INSTALL_FLAG_ALLOW_RESET_ATTEST = (byte)0x02;
 
     
 
@@ -130,9 +122,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
         localSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
 
-        flags = 0x01;
-
-        presence = new OneShotPresence();
+        presence = new NullPresence();
         
         ctapImpl = new CTAP2();
         // Modified attestation to use the CTAP2 one - Riley

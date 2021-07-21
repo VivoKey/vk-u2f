@@ -12,6 +12,6 @@ public class NullPresence implements Presence {
 
     @Override
     public byte check_user_presence() {
-        return 0;
+        return FLAG_USER_PRESENT;
     }
 }
