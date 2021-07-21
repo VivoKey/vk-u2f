@@ -1,7 +1,34 @@
-VivoKey fork of the below
-=========================
+VivoKey fork of U2F Applet
+==========================
 
-The end goal for this is that we implement CTAP2. Yes, this needs CBOR.
+This applet includes code to implement the FIDO2 CTAP standard.
+
+Currently finished is basic registration, assertion, and information commands. 
+
+This is targeted at an implant form factor, for the [VivoKey Apex](https://vivokey.com/apex) but can be used elsewhere. 
+
+# Notes:
+
+Please change the aaguid in CTAP2.java if you fork this applet, as this is specific per-manufacturer and per-model. 
+
+This is built with JC3.0.5u3, with ant-javacard. As such, it only targets the NXP P71 (for Fidesmo), and any equivalent.
+
+Ensure you initialise the submodules, as this will pull the sdk libraries for javacard itself. 
+
+I use VS Code to edit this, and I've included JC3.0.4 and JC3.0.5 sources for attachment. 
+
+The CTAP2 implementation is completely separate from the U2F implementation - handoff is done in U2FApplet.java in process() when the correct tagging is detected.
+
+Attestation is incomplete, but expects a certificate to be loaded for the CTAP2 attestation pair, which is generated on-card. Load commands are not (yet) implemented.
+
+It is envisioned we use a Yubico-compatible certificate for this, but that is outside the scope of this applet and will be covered in a personalisation project.
+
+Push requests are welcome. 
+
+User verification, by default, is flagged as complete. This is based on our implant form factor, as we consider the tap of an implant to fulfill this. As such, PIN support is not included, because it requires you to hold the implant to the reader as you type the PIN. Feel free to submit PIN support, but I will not be dedicating time to it at present.
+
+# I've left the below, which (mostly) applies to the U2F portion of this applet. 
+
 
 Customized U2F Applet
 =====================
