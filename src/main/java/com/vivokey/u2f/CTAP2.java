@@ -39,6 +39,7 @@ public class CTAP2 {
     private StoredCredential[] assertionCreds;
     private short[] nextAssertion;
     AuthenticatorGetAssertion assertion;
+    private boolean persoComplete;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -84,12 +85,17 @@ public class CTAP2 {
     public static final byte CTAP2_ERR_ACTION_TIMEOUT = (byte) 0x3A;
     public static final byte CTAP2_ERR_UP_REQUIRED = (byte) 0x3B;
 
-    private static final byte FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL = (byte) 0x01;
-    private static final byte FIDO2_AUTHENTICATOR_GET_ASSERTION = (byte) 0x02;
-    private static final byte FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION = (byte) 0x08;
-    private static final byte FIDO2_AUTHENTICATOR_GET_INFO = (byte) 0x04;
-    private static final byte FIDO2_AUTHENTICATOR_CLIENT_PIN = (byte) 0x06;
-    private static final byte FIDO2_AUTHENTICATOR_RESET = (byte) 0x07;
+    public static final byte FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL = (byte) 0x01;
+    public static final byte FIDO2_AUTHENTICATOR_GET_ASSERTION = (byte) 0x02;
+    public static final byte FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION = (byte) 0x08;
+    public static final byte FIDO2_AUTHENTICATOR_GET_INFO = (byte) 0x04;
+    public static final byte FIDO2_AUTHENTICATOR_CLIENT_PIN = (byte) 0x06;
+    public static final byte FIDO2_AUTHENTICATOR_RESET = (byte) 0x07;
+    // Vendor specific - for attestation cert loading.
+    public static final byte FIDO2_VENDOR_ATTEST_SIGN = (byte) 0x41;
+    public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
+    public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
+
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here - this is unique to manufacturer and device model.
     public static final byte[] aaguid = {(byte) 0xd7, (byte) 0xa4, (byte) 0x23, (byte) 0xad, (byte) 0x3e, (byte) 0x19, (byte) 0x44, (byte) 0x92, (byte) 0x92, (byte) 0x00, (byte) 0x78, (byte) 0x13, (byte) 0x7d, (byte) 0xcc, (byte) 0xc1, (byte) 0x36};
@@ -97,8 +103,17 @@ public class CTAP2 {
     public CTAP2() {
 
         // 1200 bytes of a transient buffer for read-in and out
-        inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
-        scratch = JCSystem.makeTransientByteArray((short) 512, JCSystem.CLEAR_ON_DESELECT);
+        try {
+            inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
+        } catch (Exception e) {
+            inBuf = new byte[1200];
+        }
+        try {
+            scratch = JCSystem.makeTransientByteArray((short) 768, JCSystem.CLEAR_ON_DESELECT);
+        } catch (Exception e) {
+            scratch = new byte[768];
+        }
+        
         vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
@@ -107,7 +122,7 @@ public class CTAP2 {
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
         nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
-        
+        persoComplete = false;
 
     }
 
@@ -147,12 +162,60 @@ public class CTAP2 {
                     authGetInfo(apdu, buffer, inBuf, vars[3]);
                 case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
                     authGetNextAssertion(apdu, buffer, inBuf, vars[3]);
+                case FIDO2_VENDOR_ATTEST_SIGN:
+                    attestSignRaw(apdu, buffer, inBuf, vars[3]);
+                case FIDO2_VENDOR_ATTEST_LOADCERT:
+                    attestSetCert(apdu, buffer, inBuf, vars[3]);
+                case FIDO2_VENDOR_PERSO_COMPLETE:
+                    persoComplete(apdu, buffer, inBuf, vars[3]);
+
                 default:
                     returnError(apdu, buffer, CTAP2_ERR_OPERATION_DENIED);
         }
     }
+    public void persoComplete(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        if(attestation.isCertSet() && !persoComplete) {
+            persoComplete = true;
+            returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
+        } else {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        }
+    }
 
+    /**
+     * Performs raw signatures, may only occur when personalisation is not complete. 
+     * @param apdu
+     * @param buffer
+     * @param inBuf
+     * @param bufLen
+     */
+    public void attestSignRaw(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        if(persoComplete) {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        }
+        cborDecoder.init(inBuf, (short) 1, (short) (bufLen-1));
+        vars[0] = cborDecoder.readMajorType(CBORBase.TYPE_MAP);
+        // Custom definition, so we go as simple as possible. 0x01 key, byte string value to sign.
+        if(cborDecoder.readInt8() == (byte) 0x01) {
+            vars[1] = cborDecoder.readByteString(scratch, (short) 0);
+            inBuf[0] = 0x00;
+            vars[2] = attestation.sign(scratch, (short) 0, vars[1], inBuf, (short) 1);
+            apdu.setOutgoing();
+            apdu.setOutgoingLength((short) (vars[2] + 1));
+            apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
+        } else {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        }
+    }
 
+    public void attestSetCert(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        if(persoComplete) {
+            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        }
+        // We don't actually use any CBOR here, simplify copying
+        attestation.setCert(inBuf, (short) 1, (short) (bufLen -1));
+        returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
+    }
     public void authMakeCredential(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
         try {
             // Init the decoder
@@ -441,6 +504,11 @@ public class CTAP2 {
         apdu.setOutgoingLength((short) info.length);
         apdu.sendBytesLong(info, (short) 0, (short) info.length);
     }
+    /**
+     * Covers the common assertion building process. 
+     * @param enc
+     * @param mapLen
+     */
     private void doAssertionCommon(CBOREncoder enc, short mapLen) {
         // Determine if we need 4 or 5 in the array
         if(mapLen == 4) {

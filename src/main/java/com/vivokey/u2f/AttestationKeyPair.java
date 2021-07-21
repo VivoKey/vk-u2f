@@ -68,4 +68,11 @@ public class AttestationKeyPair {
         Util.arrayCopy(x509cert, (short) 0, outBuf, outOff,(short) x509cert.length);
         return (short) x509cert.length;
     }
+    /**
+     * Checks if the certificate is set.
+     * @return if the certificate is set. 
+     */
+    public boolean isCertSet() {
+        return (x509cert != null);
+    }
 }
