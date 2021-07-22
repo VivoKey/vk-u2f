@@ -95,6 +95,7 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_ATTEST_SIGN = (byte) 0x41;
     public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
+    public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here - this is unique to manufacturer and device model.
@@ -168,7 +169,8 @@ public class CTAP2 {
                     attestSetCert(apdu, buffer, inBuf, vars[3]);
                 case FIDO2_VENDOR_PERSO_COMPLETE:
                     persoComplete(apdu, buffer, inBuf, vars[3]);
-
+                case FIDO2_VENDOR_ATTEST_GETPUB:
+                    getAttestPublic(apdu, buffer, inBuf, vars[3]);
                 default:
                     returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -181,6 +183,23 @@ public class CTAP2 {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
     }
+    /**
+     * Gets the attestation public key.
+     * @param apdu
+     * @param buffer
+     * @param inBuf
+     * @param bufLen
+     */
+    public void getAttestPublic(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+        if(persoComplete) {
+            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+        }
+        inBuf[0] = 0x00;
+        vars[0] = (short) (attestation.getPubkey(inBuf, (short) 1) + 1);
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(vars[0]);
+        apdu.sendBytesLong(inBuf, (short) 0, vars[0]);
+    }
 
     /**
      * Performs raw signatures, may only occur when personalisation is not complete. 
@@ -191,7 +210,7 @@ public class CTAP2 {
      */
     public void attestSignRaw(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
         if(persoComplete) {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
         cborDecoder.init(inBuf, (short) 1, (short) (bufLen-1));
         vars[0] = cborDecoder.readMajorType(CBORBase.TYPE_MAP);

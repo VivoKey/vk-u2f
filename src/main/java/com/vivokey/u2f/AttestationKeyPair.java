@@ -17,6 +17,7 @@
 package com.vivokey.u2f;
 
 import javacard.framework.Util;
+import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.Signature;
@@ -78,5 +79,9 @@ public class AttestationKeyPair {
      */
     public boolean isCertSet() {
         return (x509cert != null);
+    }
+
+    public short getPubkey(byte[] outBuf, short outOff) {
+        return ((ECPublicKey) kp.getPublic()).getW(outBuf, outOff);
     }
 }
