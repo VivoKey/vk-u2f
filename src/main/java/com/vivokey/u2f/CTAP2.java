@@ -212,19 +212,12 @@ public class CTAP2 {
         if(persoComplete) {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
-        cborDecoder.init(inBuf, (short) 1, (short) (bufLen-1));
-        vars[0] = cborDecoder.readMajorType(CBORBase.TYPE_MAP);
-        // Custom definition, so we go as simple as possible. 0x01 key, byte string value to sign.
-        if(cborDecoder.readInt8() == (byte) 0x01) {
-            vars[1] = cborDecoder.readByteString(scratch, (short) 0);
-            inBuf[0] = 0x00;
-            vars[2] = attestation.sign(scratch, (short) 0, vars[1], inBuf, (short) 1);
-            apdu.setOutgoing();
-            apdu.setOutgoingLength((short) (vars[2] + 1));
-            apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
-        } else {
-            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
-        }
+        Util.arrayCopy(inBuf, (short) 1, scratch, (short) 0, (short) (bufLen - 1));
+        inBuf[0] = 0x00;
+        vars[2] = attestation.sign(scratch, (short) 0, vars[1], inBuf, (short) 1);
+        apdu.setOutgoing();
+        apdu.setOutgoingLength((short) (vars[2] + 1));
+        apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
     }
 
     public void attestSetCert(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
