@@ -554,8 +554,8 @@ public class CTAP2 {
             cborEncoder.encodeUInt16((short) 1200);
             // Done
             JCSystem.beginTransaction();
-            info = new byte[(short) (cborEncoder.getCurrentOffset() - 1)];
-            Util.arrayCopy(inBuf, (short) 0, info, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
+            info = new byte[cborEncoder.getCurrentOffset()];
+            Util.arrayCopy(inBuf, (short) 0, info, (short) 0, cborEncoder.getCurrentOffset());
             JCSystem.commitTransaction();
         }
         // Send it
