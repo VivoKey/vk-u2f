@@ -131,6 +131,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         
         // Modified attestation to use the CTAP2 one - Riley
 
+        ctapImpl = new CTAP2();
         fidoImpl = new FIDOStandalone();
     }
 
@@ -374,7 +375,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
     public void process(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
-            ctapImpl = new CTAP2();
             Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
             apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
         }
@@ -387,7 +387,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
             }
         } else {
             if (!ctapImpl.attestation.isCertSet()) {
-                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+                ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
             }
             switch (buffer[ISO7816.OFFSET_INS]) {
                 case FIDO_INS_ENROLL:
