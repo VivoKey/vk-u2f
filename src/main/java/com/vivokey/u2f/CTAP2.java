@@ -176,18 +176,25 @@ public class CTAP2 {
                 break;
             case FIDO2_AUTHENTICATOR_GET_ASSERTION:
                 authGetAssertion(apdu, buffer, vars[3]);
+                break;
             case FIDO2_AUTHENTICATOR_GET_INFO:
                 authGetInfo(apdu);
+                break;
             case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
                 authGetNextAssertion(apdu, buffer);
+                break;
             case FIDO2_VENDOR_ATTEST_SIGN:
                 attestSignRaw(apdu, buffer, vars[3]);
+                break;
             case FIDO2_VENDOR_ATTEST_LOADCERT:
                 attestSetCert(apdu, buffer, vars[3]);
+                break;
             case FIDO2_VENDOR_PERSO_COMPLETE:
                 persoComplete(apdu, buffer, vars[3]);
+                break;
             case FIDO2_VENDOR_ATTEST_GETPUB:
                 getAttestPublic(apdu, buffer, vars[3]);
+                break;
             default:
                 returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
