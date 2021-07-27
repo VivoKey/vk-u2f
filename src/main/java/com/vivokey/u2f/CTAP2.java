@@ -130,72 +130,57 @@ public class CTAP2 {
     }
 
     public void handle(APDU apdu, byte[] buffer) {
-        try {
-            vars[4] = apdu.setIncomingAndReceive();
-            // Check if the APDU is too big, we only handle 1200 byte
-            if (apdu.getIncomingLength() > 1200) {
-                returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
-                return;
-            }
-        } catch (Exception e) {
-            ISOException.throwIt((short) 0x01);
+        vars[4] = apdu.setIncomingAndReceive();
+        // Check if the APDU is too big, we only handle 1200 byte
+        if (apdu.getIncomingLength() > 1200) {
+            returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
+            return;
         }
-        try {
-            vars[3] = apdu.getIncomingLength();
-            // Read into the buffer, as messages can be pretty large
-            vars[0] = (short) (vars[4] - apdu.getOffsetCdata());
-            vars[1] = apdu.getOffsetCdata();
-            vars[2] = 0;
-        } catch (Exception e) {
-            ISOException.throwIt((short) 0x02);
-        }
+        vars[3] = apdu.getIncomingLength();
+        // Read into the buffer, as messages can be pretty large
+        vars[0] = (short) (vars[4] - apdu.getOffsetCdata() - 1);
+        vars[1] = apdu.getOffsetCdata();
+        vars[2] = 0;
 
         try {
             // Copy first part of the APDU
-            Util.arrayCopy(buffer, vars[1], inBuf, vars[2], vars[0]);
+            Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
             // Source offset
             vars[1] = 0;
             vars[2] = vars[0];
         } catch (Exception e) {
             ISOException.throwIt((short) 0x03);
         }
-        try {
-            while (apdu.getCurrentState() != APDU.STATE_PARTIAL_INCOMING) {
-                // Grab more bytes, set new length, etc
-                vars[0] = apdu.receiveBytes(vars[1]);
-                Util.arrayCopy(buffer, vars[1], inBuf, vars[2], vars[0]);
-                // Source offset
-                vars[1] = 0;
-                vars[2] += vars[0];
-            }
-        } catch (Exception e) {
-            ISOException.throwIt((short) 0x04);
+        while (apdu.getCurrentState() == APDU.STATE_PARTIAL_INCOMING) {
+            // Grab more bytes, set new length, etc
+            vars[0] = apdu.receiveBytes(vars[1]);
+            Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
+            // Source offset
+            vars[1] = 0;
+            vars[2] += vars[0];
         }
-        try {
-            // Need to grab the CTAP command byte
-            switch (inBuf[0]) {
-                case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
-                    authMakeCredential(apdu, buffer, inBuf, vars[3]);
-                    break;
-                case FIDO2_AUTHENTICATOR_GET_ASSERTION:
-                    authGetAssertion(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_AUTHENTICATOR_GET_INFO:
-                    authGetInfo(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
-                    authGetNextAssertion(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_VENDOR_ATTEST_SIGN:
-                    attestSignRaw(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_VENDOR_ATTEST_LOADCERT:
-                    attestSetCert(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_VENDOR_PERSO_COMPLETE:
-                    persoComplete(apdu, buffer, inBuf, vars[3]);
-                case FIDO2_VENDOR_ATTEST_GETPUB:
-                    getAttestPublic(apdu, buffer, inBuf, vars[3]);
-                default:
-                    returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
-            }
-        } catch (Exception e) {
-            ISOException.throwIt((short) 0x05);
+
+        // Need to grab the CTAP command byte
+        switch (inBuf[0]) {
+            case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
+                authMakeCredential(apdu, buffer, inBuf, vars[3]);
+                break;
+            case FIDO2_AUTHENTICATOR_GET_ASSERTION:
+                authGetAssertion(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_AUTHENTICATOR_GET_INFO:
+                authGetInfo(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
+                authGetNextAssertion(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_VENDOR_ATTEST_SIGN:
+                attestSignRaw(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_VENDOR_ATTEST_LOADCERT:
+                attestSetCert(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_VENDOR_PERSO_COMPLETE:
+                persoComplete(apdu, buffer, inBuf, vars[3]);
+            case FIDO2_VENDOR_ATTEST_GETPUB:
+                getAttestPublic(apdu, buffer, inBuf, vars[3]);
+            default:
+                returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
 
     }
