@@ -129,7 +129,8 @@ public class CTAP2 {
 
     }
 
-    public void handle(APDU apdu, byte[] buffer) {
+    public void handle(APDU apdu) {
+        byte[] buffer = apdu.getBuffer();
         vars[4] = apdu.setIncomingAndReceive();
         // Check if the APDU is too big, we only handle 1200 byte
         if (apdu.getIncomingLength() > 1200) {
@@ -141,51 +142,59 @@ public class CTAP2 {
         vars[0] = (short) (vars[4] - apdu.getOffsetCdata() - 1);
         vars[1] = apdu.getOffsetCdata();
         vars[2] = 0;
-
-        try {
-            // Copy first part of the APDU
-            Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
-            // Source offset
-            vars[1] = 0;
-            vars[2] = vars[0];
-        } catch (Exception e) {
-            ISOException.throwIt((short) 0x03);
+        if(vars[3] == 0x01) {
+            inBuf[0] = buffer[vars[1]];
+        } else {
+            try {
+                // Copy first part of the APDU
+                Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
+                // Source offset
+                vars[1] = 0;
+                vars[2] = vars[0];
+            } catch (NullPointerException e) {
+                ISOException.throwIt((short) 0x01);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                ISOException.throwIt((short) 0x02);
+            } catch (Exception e) {
+                ISOException.throwIt((short) 0x03);
+            }
+            while (apdu.getCurrentState() == APDU.STATE_PARTIAL_INCOMING) {
+                // Grab more bytes, set new length, etc
+                vars[0] = apdu.receiveBytes(vars[1]);
+                Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
+                // Source offset
+                vars[1] = 0;
+                vars[2] += vars[0];
+            }
         }
-        while (apdu.getCurrentState() == APDU.STATE_PARTIAL_INCOMING) {
-            // Grab more bytes, set new length, etc
-            vars[0] = apdu.receiveBytes(vars[1]);
-            Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
-            // Source offset
-            vars[1] = 0;
-            vars[2] += vars[0];
-        }
+        
 
         // Need to grab the CTAP command byte
         switch (inBuf[0]) {
             case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
-                authMakeCredential(apdu, buffer, inBuf, vars[3]);
+                authMakeCredential(apdu, buffer, vars[3]);
                 break;
             case FIDO2_AUTHENTICATOR_GET_ASSERTION:
-                authGetAssertion(apdu, buffer, inBuf, vars[3]);
+                authGetAssertion(apdu, buffer, vars[3]);
             case FIDO2_AUTHENTICATOR_GET_INFO:
-                authGetInfo(apdu, buffer, inBuf, vars[3]);
+                authGetInfo(apdu);
             case FIDO2_AUTHENTICATOR_GET_NEXT_ASSERTION:
-                authGetNextAssertion(apdu, buffer, inBuf, vars[3]);
+                authGetNextAssertion(apdu, buffer);
             case FIDO2_VENDOR_ATTEST_SIGN:
-                attestSignRaw(apdu, buffer, inBuf, vars[3]);
+                attestSignRaw(apdu, buffer, vars[3]);
             case FIDO2_VENDOR_ATTEST_LOADCERT:
-                attestSetCert(apdu, buffer, inBuf, vars[3]);
+                attestSetCert(apdu, buffer, vars[3]);
             case FIDO2_VENDOR_PERSO_COMPLETE:
-                persoComplete(apdu, buffer, inBuf, vars[3]);
+                persoComplete(apdu, buffer, vars[3]);
             case FIDO2_VENDOR_ATTEST_GETPUB:
-                getAttestPublic(apdu, buffer, inBuf, vars[3]);
+                getAttestPublic(apdu, buffer, vars[3]);
             default:
                 returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
 
     }
 
-    public void persoComplete(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void persoComplete(APDU apdu, byte[] buffer, short bufLen) {
         if (attestation.isCertSet() && !persoComplete) {
             persoComplete = true;
             returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
@@ -202,7 +211,7 @@ public class CTAP2 {
      * @param inBuf
      * @param bufLen
      */
-    public void getAttestPublic(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void getAttestPublic(APDU apdu, byte[] buffer, short bufLen) {
         if (persoComplete) {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -221,7 +230,7 @@ public class CTAP2 {
      * @param inBuf
      * @param bufLen
      */
-    public void attestSignRaw(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void attestSignRaw(APDU apdu, byte[] buffer, short bufLen) {
         if (persoComplete) {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -233,7 +242,7 @@ public class CTAP2 {
         apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
     }
 
-    public void attestSetCert(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void attestSetCert(APDU apdu, byte[] buffer, short bufLen) {
         if (persoComplete) {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -242,7 +251,7 @@ public class CTAP2 {
         returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
     }
 
-    public void authMakeCredential(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void authMakeCredential(APDU apdu, byte[] buffer, short bufLen) {
         try {
             // Init the decoder
             cborDecoder.init(inBuf, (short) 1, bufLen);
@@ -356,7 +365,7 @@ public class CTAP2 {
 
     }
 
-    public void authGetAssertion(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void authGetAssertion(APDU apdu, byte[] buffer, short bufLen) {
         try {
             // Decode the CBOR array for the assertion
             cborDecoder.init(inBuf, (short) 1, bufLen);
@@ -406,7 +415,7 @@ public class CTAP2 {
      * @param inBuf
      * @param inLen
      */
-    private void authGetNextAssertion(APDU apdu, byte[] buffer, byte[] inBuf, short inLen) {
+    private void authGetNextAssertion(APDU apdu, byte[] buffer) {
         try {
             // Confirm that we have more assertions to do
             if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
@@ -502,7 +511,7 @@ public class CTAP2 {
      * @param inBuf
      * @param bufLen
      */
-    public void authGetInfo(APDU apdu, byte[] buffer, byte[] inBuf, short bufLen) {
+    public void authGetInfo(APDU apdu) {
         // Create the authenticator info if not present.
         if (info == null) {
             // Create the authGetInfo - 0x00 is success
