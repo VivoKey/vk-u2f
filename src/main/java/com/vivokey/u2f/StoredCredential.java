@@ -31,10 +31,10 @@ public abstract class StoredCredential {
     private byte[] sigCounter;
     protected StoredCredential() {
         if(rng == null) {
-            rng = RandomData.getInstance(RandomData.ALG_TRNG);
+            rng = RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
         }
         id = new byte[16];
-        rng.nextBytes(id, (short) 0, (short) 16);
+        rng.generateData(id, (short) 0, (short) 16);
         sigCounter = new byte[4];
     }
     // Generic ID check function, for credential IDs
@@ -61,7 +61,7 @@ public abstract class StoredCredential {
         }
         if(sigCounter[0] == 0xFF && sigCounter[1] == 0xFF && sigCounter[2] == 0xFF && sigCounter[3] == 0xFF) {
             // Overflow, roll to 0
-            Util.arrayFill(sigCounter, (short) 0, (short) 4, (byte) 0x00);
+            Util.arrayFillNonAtomic(sigCounter, (short) 0, (short) 4, (byte) 0x00);
             JCSystem.commitTransaction();
             return;
         }
