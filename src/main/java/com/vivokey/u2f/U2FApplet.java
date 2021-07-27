@@ -377,6 +377,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         if (selectingApplet()) {
             Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
             apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
+            return;
         }
 
         if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
