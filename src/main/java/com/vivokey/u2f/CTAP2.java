@@ -131,10 +131,10 @@ public class CTAP2 {
 
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
-        // Get true incoming length
-        vars[3] = apdu.getIncomingLength();
         // Receive the APDU
         vars[4] = apdu.setIncomingAndReceive();
+        // Get true incoming data length
+        vars[3] = apdu.getIncomingLength();
         // Check if the APDU is too big, we only handle 1200 byte
         if (vars[3] > 1200) {
             returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
@@ -142,7 +142,7 @@ public class CTAP2 {
         }
         // Check what we need to do re APDU buffer, is it full (special case for 1 len)
         if (vars[3] == 0x01) {
-            inBuf[0] = buffer[vars[1]];
+            inBuf[0] = buffer[apdu.getOffsetCdata()];
         } else if (apdu.getCurrentState() == APDU.STATE_FULL_INCOMING) {
             // We need to do no more
             // Read the entirety of the buffer into the inBuf
