@@ -17,6 +17,7 @@
 package com.vivokey.u2f;
 
 import javacard.framework.Util;
+import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
@@ -31,6 +32,7 @@ public class AttestationKeyPair {
     public byte[] x509cert;
     public AttestationKeyPair() {
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
         // Generate a new keypair for attestation.
         kp.genKeyPair();
         // Initialise a signature object

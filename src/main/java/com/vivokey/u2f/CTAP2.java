@@ -103,6 +103,7 @@ public class CTAP2 {
     
     public CTAP2() {
 
+
         // 1200 bytes of a transient buffer for read-in and out
         try {
             inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
@@ -114,16 +115,28 @@ public class CTAP2 {
         } catch (Exception e) {
             scratch = new byte[768];
         }
-        
-        vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
-        // Create the CBOR decoder
-        cborDecoder = new CBORDecoder();
-        cborEncoder = new CBOREncoder();
-        discoverableCreds = new CredentialArray((short) 10);
-        sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
-        attestation = new AttestationKeyPair();
-        nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
-        persoComplete = false;
+        try {
+            vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
+            // Create the CBOR decoder
+            cborDecoder = new CBORDecoder();
+            cborEncoder = new CBOREncoder();
+            discoverableCreds = new CredentialArray((short) 10);
+        } catch (Exception e) {
+            ISOException.throwIt((short) 0x01);
+        }
+        try {
+            sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
+        } catch (Exception e) {
+            ISOException.throwIt((short) 0x02);
+        }
+        try {
+            attestation = new AttestationKeyPair();
+            nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
+            persoComplete = false;
+        } catch (Exception e) {
+            ISOException.throwIt((short) 0x03);
+        }
+
 
     }
 
