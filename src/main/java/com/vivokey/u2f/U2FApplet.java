@@ -88,7 +88,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
     // Parameters
     // None
-    public U2FApplet(byte[] parameters, short parametersOffset, byte parametersLength) {
+    public U2FApplet() {
 
         // Initialize with 8 counters.
         counters = new Counter[] {
@@ -414,7 +414,13 @@ public class U2FApplet extends Applet implements ExtendedLength {
         short offset = bOffset;
         offset += (short)(bArray[offset] + 1); // instance
         offset += (short)(bArray[offset] + 1); // privileges
-        new U2FApplet(bArray, (short)(offset + 1), bArray[offset]).register(bArray, (short)(bOffset + 1), bArray[bOffset]);
+        final U2FApplet applet = new U2FApplet();
+        try {
+            applet.register();
+        } catch (Exception e) {
+            applet.register(bArray, (short)(bOffset + 1), bArray[bOffset]);
+        }
+        
     }
 }
 
