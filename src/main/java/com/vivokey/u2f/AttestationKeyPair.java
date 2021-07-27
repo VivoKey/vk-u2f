@@ -30,6 +30,7 @@ public class AttestationKeyPair {
     private KeyPair kp;
     private Signature sig;
     public byte[] x509cert;
+    public short x509len;
     public AttestationKeyPair() {
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
         Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
@@ -38,6 +39,8 @@ public class AttestationKeyPair {
         // Initialise a signature object
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
+        x509cert = new byte[1200];
+        x509len = 0;
     }
     /**
      * Signs a byte array with the attestation keypair.
@@ -61,8 +64,8 @@ public class AttestationKeyPair {
      * @param inLen length of certificate.
      */
     public void setCert(byte[] inBuf, short inOff, short inLen) {
-        x509cert = new byte[inLen];
         Util.arrayCopy(inBuf, inOff, x509cert, (short) 0, inLen);
+        x509len = inLen;
     }
 
     /**
@@ -72,15 +75,15 @@ public class AttestationKeyPair {
      * @return the length of the certificate.
      */
     public short getCert(byte[] outBuf, short outOff) {
-        Util.arrayCopy(x509cert, (short) 0, outBuf, outOff,(short) x509cert.length);
-        return (short) x509cert.length;
+        Util.arrayCopy(x509cert, (short) 0, outBuf, outOff, x509len);
+        return x509len;
     }
     /**
      * Checks if the certificate is set.
      * @return if the certificate is set. 
      */
     public boolean isCertSet() {
-        return (x509cert != null);
+        return (x509len != 0);
     }
 
     public short getPubkey(byte[] outBuf, short outOff) {

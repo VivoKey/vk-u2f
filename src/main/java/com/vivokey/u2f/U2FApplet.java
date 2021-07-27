@@ -179,9 +179,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
             // If using extended length, the message can be completed and sent immediately
             scratch[SCRATCH_TRANSPORT_STATE] = TRANSPORT_EXTENDED;
             apdu.setOutgoing();
-            apdu.setOutgoingLength((short)(outOffset + ctapImpl.attestation.x509cert.length + signatureSize));
+            apdu.setOutgoingLength((short)(outOffset + ctapImpl.attestation.x509len + signatureSize));
             apdu.sendBytesLong(scratch, SCRATCH_PAD, outOffset);
-            apdu.sendBytesLong(ctapImpl.attestation.x509cert, (short)0, (short) ctapImpl.attestation.x509cert.length);
+            apdu.sendBytesLong(ctapImpl.attestation.x509cert, (short)0, ctapImpl.attestation.x509len);
             apdu.sendBytesLong(scratch, SCRATCH_SIGNATURE_OFFSET, signatureSize);
         }
         else {
@@ -190,7 +190,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
             Util.setShort(scratch, SCRATCH_CURRENT_OFFSET, (short)0);
             Util.setShort(scratch, SCRATCH_SIGNATURE_LENGTH, signatureSize);
             Util.setShort(scratch, SCRATCH_NONCERT_LENGTH, outOffset);
-            Util.setShort(scratch, SCRATCH_FULL_LENGTH, (short)(outOffset + ctapImpl.attestation.x509cert.length + signatureSize));
+            Util.setShort(scratch, SCRATCH_FULL_LENGTH, (short)(outOffset + ctapImpl.attestation.x509len + signatureSize));
             scratch[SCRATCH_INCLUDE_CERT] = (byte)1;
             handleGetData(apdu);
         }
@@ -335,12 +335,12 @@ public class U2FApplet extends Applet implements ExtendedLength {
             }
         }
         if ((scratch[SCRATCH_TRANSPORT_STATE] == TRANSPORT_NOT_EXTENDED_CERT) && (requestedSize != (short)0)) {
-            short blockSize = ((short)(ctapImpl.attestation.x509cert.length - currentOffset) > requestedSize ? requestedSize : (short)(ctapImpl.attestation.x509cert.length - currentOffset));
+            short blockSize = ((short)(ctapImpl.attestation.x509len - currentOffset) > requestedSize ? requestedSize : (short)(ctapImpl.attestation.x509len - currentOffset));
             Util.arrayCopyNonAtomic(ctapImpl.attestation.x509cert, currentOffset, buffer, outOffset, blockSize);
             outOffset += blockSize;
             currentOffset += blockSize;
             fullLength -= blockSize;
-            if (currentOffset == (short)ctapImpl.attestation.x509cert.length) {
+            if (currentOffset == (short)ctapImpl.attestation.x509len) {
                 if (Util.getShort(scratch, SCRATCH_SIGNATURE_LENGTH) != (short)0) {
                     scratch[SCRATCH_TRANSPORT_STATE] = TRANSPORT_NOT_EXTENDED_SIGNATURE;
                     currentOffset = (short)0;

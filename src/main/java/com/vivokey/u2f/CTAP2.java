@@ -152,20 +152,19 @@ public class CTAP2 {
             // First, copy the current data buffer in
             // Get the number of bytes in the data buffer that are the Lc, vars[5] will do
             vars[5] = (short) (vars[4] - apdu.getOffsetCdata());
-            // Make the copy
-            Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, (short) 0, vars[5]);
-            // vars[2] is the destination offset. We need to ensure it is appended here. vars[5] is the current length, which will do as an offset.
-            vars[2] = vars[5];
-            // We enter the while loop now
-            while (apdu.getCurrentState() != APDU.STATE_FULL_INCOMING) {
-                // vars[5] needs to be how many bytes in the buffer we need to copy. Copying into the APDU buffer at offset 0.
-                vars[5] = apdu.receiveBytes((short) 0);
-                // Make the copy. vars[2] is now the successful start offset for the next copy, too.
-                vars[2] = Util.arrayCopyNonAtomic(buffer, (short) 0, inBuf, vars[2], vars[5]);
+            // Make the copy, vars[3] is bytes remaining to get
+            vars[4] = 0;
+            while (vars[3] > 0) {
+                // Copy data
+                vars[4] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, vars[4], vars[5]);
+                // Decrement vars[3] by the bytes copied
+                vars[3] -= vars[5];
+                // Pull more bytes
+                vars[5] = apdu.receiveBytes(apdu.getOffsetCdata());
             }
             // Now we're at the end, here, and the commands expect us to give them a data length. Turns out Le bytes aren't anywhere to be found here.
-            // The commands use vars[3], so vars[2] will be fine to copy to vars[3].
-            vars[3] = vars[2];
+            // The commands use vars[3], so vars[4] will be fine to copy to vars[3].
+            vars[3] = vars[4];
         }
 
         // Need to grab the CTAP command byte
@@ -356,7 +355,7 @@ public class CTAP2 {
                 enc2.encodeByteString(scratch, scratch[(short) (vars[0] + vars[2] + 1)], (short) (vars[3] + 1));
                 // Set the x509 now
                 enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
-                enc2.encodeByteString(attestation.x509cert, (short) 0, (short) attestation.x509cert.length);
+                enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
                 // Now set this whole array into the other CBOR
                 cborEncoder.encodeByteString(packed, (short) 0, (short) (enc2.getCurrentOffset() - 1));
                 // We're actually done, send this out
