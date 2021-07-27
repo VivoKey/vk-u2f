@@ -129,7 +129,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
         presence = new NullPresence();
         
-        ctapImpl = new CTAP2();
         // Modified attestation to use the CTAP2 one - Riley
 
         fidoImpl = new FIDOStandalone();
@@ -375,6 +374,15 @@ public class U2FApplet extends Applet implements ExtendedLength {
     public void process(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
+            try {
+                ctapImpl = new CTAP2();
+            } catch (CryptoException e) {
+                ISOException.throwIt((short) 0x01);
+            } catch (ISOException e) {
+                ISOException.throwIt((short) 0x02);
+            } catch (Exception e) {
+                ISOException.throwIt((short) 0x03);
+            }
             Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
             apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
         }
