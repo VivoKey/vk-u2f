@@ -101,7 +101,11 @@ public class U2FApplet extends Applet implements ExtendedLength {
         // First counter is counter zero.
         next_counter = 0;
 
-        scratch = JCSystem.makeTransientByteArray((short)(SCRATCH_PAD + SCRATCH_PAD_SIZE), JCSystem.CLEAR_ON_DESELECT);
+        try {
+            scratch = JCSystem.makeTransientByteArray((short)(SCRATCH_PAD + SCRATCH_PAD_SIZE), JCSystem.CLEAR_ON_DESELECT);
+        } catch (Exception e) {
+            scratch = new byte[(short)(SCRATCH_PAD + SCRATCH_PAD_SIZE)];
+        }
 
         try {
             // ok, let's save RAM
@@ -371,15 +375,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
     public void process(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
-            if (ctapImpl.attestation.isCertSet()) {
-                Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
-                apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
-            }
-            return;
-        }
-
-        if (!ctapImpl.attestation.isCertSet()) {
-            ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+            Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
+            apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
         }
 
         if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
@@ -389,6 +386,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
             }
         } else {
+            if (!ctapImpl.attestation.isCertSet()) {
+                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+            }
             switch (buffer[ISO7816.OFFSET_INS]) {
                 case FIDO_INS_ENROLL:
                     handleEnroll(apdu);
