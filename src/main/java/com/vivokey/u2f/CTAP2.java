@@ -110,7 +110,7 @@ public class CTAP2 {
         try {
             inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
         } catch (Exception e) {
-            inBuf = new byte[1200];
+            inBuf = new byte[1210];
         }
         try {
             scratch = JCSystem.makeTransientByteArray((short) 768, JCSystem.CLEAR_ON_DESELECT);
@@ -131,43 +131,42 @@ public class CTAP2 {
 
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
+        // Get true incoming length
+        vars[3] = apdu.getIncomingLength();
+        // Receive the APDU
         vars[4] = apdu.setIncomingAndReceive();
         // Check if the APDU is too big, we only handle 1200 byte
-        if (apdu.getIncomingLength() > 1200) {
+        if (vars[3] > 1200) {
             returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
             return;
         }
-        vars[3] = apdu.getIncomingLength();
-        // Read into the buffer, as messages can be pretty large
-        vars[0] = (short) (vars[4] - apdu.getOffsetCdata() - 1);
-        vars[1] = apdu.getOffsetCdata();
-        vars[2] = 0;
-        if(vars[3] == 0x01) {
+        // Check what we need to do re APDU buffer, is it full (special case for 1 len)
+        if (vars[3] == 0x01) {
             inBuf[0] = buffer[vars[1]];
+        } else if (apdu.getCurrentState() == APDU.STATE_FULL_INCOMING) {
+            // We need to do no more
+            // Read the entirety of the buffer into the inBuf
+            Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, (short) 0, vars[3]);
         } else {
-            try {
-                // Copy first part of the APDU
-                Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
-                // Source offset
-                vars[1] = 0;
-                vars[2] = vars[0];
-            } catch (NullPointerException e) {
-                ISOException.throwIt((short) 0x01);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                ISOException.throwIt((short) 0x02);
-            } catch (Exception e) {
-                ISOException.throwIt((short) 0x03);
+            // The APDU needs a multi-stage copy
+            // First, copy the current data buffer in
+            // Get the number of bytes in the data buffer that are the Lc, vars[5] will do
+            vars[5] = (short) (vars[4] - apdu.getOffsetCdata());
+            // Make the copy
+            Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, (short) 0, vars[5]);
+            // vars[2] is the destination offset. We need to ensure it is appended here. vars[5] is the current length, which will do as an offset.
+            vars[2] = vars[5];
+            // We enter the while loop now
+            while (apdu.getCurrentState() != APDU.STATE_FULL_INCOMING) {
+                // vars[5] needs to be how many bytes in the buffer we need to copy. Copying into the APDU buffer at offset 0.
+                vars[5] = apdu.receiveBytes((short) 0);
+                // Make the copy. vars[2] is now the successful start offset for the next copy, too.
+                vars[2] = Util.arrayCopyNonAtomic(buffer, (short) 0, inBuf, vars[2], vars[5]);
             }
-            while (apdu.getCurrentState() == APDU.STATE_PARTIAL_INCOMING) {
-                // Grab more bytes, set new length, etc
-                vars[0] = apdu.receiveBytes(vars[1]);
-                Util.arrayCopyNonAtomic(buffer, vars[1], inBuf, vars[2], vars[0]);
-                // Source offset
-                vars[1] = 0;
-                vars[2] += vars[0];
-            }
+            // Now we're at the end, here, and the commands expect us to give them a data length. Turns out Le bytes aren't anywhere to be found here.
+            // The commands use vars[3], so vars[2] will be fine to copy to vars[3].
+            vars[3] = vars[2];
         }
-        
 
         // Need to grab the CTAP command byte
         switch (inBuf[0]) {
