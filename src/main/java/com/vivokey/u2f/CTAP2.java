@@ -18,6 +18,7 @@
 package com.vivokey.u2f;
 
 import javacard.framework.APDU;
+import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
@@ -40,6 +41,8 @@ public class CTAP2 {
     private short[] nextAssertion;
     AuthenticatorGetAssertion assertion;
     private boolean persoComplete;
+    private boolean[] isChaining;
+    private short[] chainRam;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -126,47 +129,20 @@ public class CTAP2 {
         attestation = new AttestationKeyPair();
         nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
         persoComplete = false;
+        isChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
+        chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
 
     }
 
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
-        // Receive the APDU
-        vars[4] = apdu.setIncomingAndReceive();
-        // Get true incoming data length
-        vars[3] = apdu.getIncomingLength();
-        // Check if the APDU is too big, we only handle 1200 byte
-        if (vars[3] > 1200) {
-            returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
+        vars[3] = doApduIngestion(apdu);
+        if(vars[3] == 0) {
+            // If zero, we had no ISO error, but there might be a CTAP error to return. Throw either way.
+            ISOException.throwIt(ISO7816.SW_NO_ERROR);
             return;
         }
-        // Check what we need to do re APDU buffer, is it full (special case for 1 len)
-        if (vars[3] == 0x01) {
-            inBuf[0] = buffer[apdu.getOffsetCdata()];
-        } else if (apdu.getCurrentState() == APDU.STATE_FULL_INCOMING) {
-            // We need to do no more
-            // Read the entirety of the buffer into the inBuf
-            Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, (short) 0, vars[3]);
-        } else {
-            // The APDU needs a multi-stage copy
-            // First, copy the current data buffer in
-            // Get the number of bytes in the data buffer that are the Lc, vars[5] will do
-            vars[5] = (short) (vars[4] - apdu.getOffsetCdata());
-            // Make the copy, vars[3] is bytes remaining to get
-            vars[4] = 0;
-            while (vars[3] > 0) {
-                // Copy data
-                vars[4] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, vars[4], vars[5]);
-                // Decrement vars[3] by the bytes copied
-                vars[3] -= vars[5];
-                // Pull more bytes
-                vars[5] = apdu.receiveBytes(apdu.getOffsetCdata());
-            }
-            // Now we're at the end, here, and the commands expect us to give them a data length. Turns out Le bytes aren't anywhere to be found here.
-            // The commands use vars[3], so vars[4] will be fine to copy to vars[3].
-            vars[3] = vars[4];
-        }
-
+        // TODO: Chaining responses
         // Need to grab the CTAP command byte
         switch (inBuf[0]) {
             case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
@@ -569,6 +545,7 @@ public class CTAP2 {
      * @param mapLen
      */
     private void doAssertionCommon(CBOREncoder enc, short mapLen) {
+
         // Determine if we need 4 or 5 in the array
         if (mapLen == 4) {
             enc.startMap((short) 4);
@@ -620,6 +597,85 @@ public class CTAP2 {
         if (mapLen == 5) {
             cborEncoder.encodeUInt8((byte) 0x05);
             cborEncoder.encodeUInt8((byte) assertionCreds.length);
+        }
+
+    }
+
+    // There's only so many ways to do this.
+    static boolean isCommandChainingCLA(APDU apdu) {
+        byte[] buf = apdu.getBuffer();
+        return ((byte)(buf[0] & (byte)0x10) == (byte)0x10);
+    }
+
+    /**
+     * \brief Handle the command chaining or extended APDU logic.
+     * 
+     * Due to the FIDO2 spec requiring support for both extended APDUs and command chaining, we need to implement chaining here.
+     * 
+     * I didn't want to pollute the logic over in the process function, and it makes sense to do both here.
+     * @param apdu
+     * @return length of data to be processed. 0 if command chaining's not finished.
+     */
+    private short doApduIngestion(APDU apdu) {
+        byte[] buffer = apdu.getBuffer();
+        // Receive the APDU
+        vars[4] = apdu.setIncomingAndReceive();
+        // Get true incoming data length
+        vars[3] = apdu.getIncomingLength();
+        // Check if the APDU is too big, we only handle 1200 byte
+        if (vars[3] > 1200) {
+            returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
+            return 0;
+        }
+        // Check what we need to do re APDU buffer, is it full (special case for 1 len)
+
+        // If this is a command chaining APDU, swap to that logic
+        if(isCommandChainingCLA(apdu)) {
+            // In the chaining
+            if(!isChaining[0]) {
+                // Must be first chaining APDU
+                isChaining[0] = true;
+                // Prep the variables
+                chainRam[0] = 0;
+            }
+            // Copy buffer
+            chainRam[1] = (short) (vars[4] - apdu.getOffsetCdata());
+            // chainRam[0] is the current point in the buffer we start from
+            chainRam[0] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, chainRam[0], chainRam[1]);
+            return 0x00;
+        } else if (isChaining[0]) {
+            // Must be the last of the chaining - make the copy and return the length.
+            chainRam[1] = (short) (vars[4] - apdu.getOffsetCdata());
+            chainRam[0] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, chainRam[0], chainRam[1]);
+            isChaining[0] = false;
+            isChaining[1] = true;
+            return chainRam[0];
+        } else if (vars[3] == 0x01) {
+            inBuf[0] = buffer[apdu.getOffsetCdata()];
+            return 0x01;
+        } else if (apdu.getCurrentState() == APDU.STATE_FULL_INCOMING) {
+            // We need to do no more
+            // Read the entirety of the buffer into the inBuf
+            Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, (short) 0, vars[3]);
+            return vars[4];
+        } else {
+            // The APDU needs a multi-stage copy
+            // First, copy the current data buffer in
+            // Get the number of bytes in the data buffer that are the Lc, vars[5] will do
+            vars[5] = (short) (vars[4] - apdu.getOffsetCdata());
+            // Make the copy, vars[3] is bytes remaining to get
+            vars[4] = 0;
+            while (vars[3] > 0) {
+                // Copy data
+                vars[4] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, vars[4], vars[5]);
+                // Decrement vars[3] by the bytes copied
+                vars[3] -= vars[5];
+                // Pull more bytes
+                vars[5] = apdu.receiveBytes(apdu.getOffsetCdata());
+            }
+            // Now we're at the end, here, and the commands expect us to give them a data length. Turns out Le bytes aren't anywhere to be found here.
+            // The commands use vars[3], so vars[4] will be fine to copy to vars[3].
+            return vars[4];
         }
 
     }
