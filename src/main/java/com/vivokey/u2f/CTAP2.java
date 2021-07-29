@@ -99,7 +99,6 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
-    public static final byte FIDO2_VENDOR_ATTEST_CHKCERT = (byte) 0x45;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -170,8 +169,6 @@ public class CTAP2 {
             case FIDO2_VENDOR_ATTEST_GETPUB:
                 getAttestPublic(apdu, buffer, vars[3]);
                 break;
-            case FIDO2_VENDOR_ATTEST_CHKCERT:
-                checkCert(apdu);
             default:
                 returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -233,7 +230,12 @@ public class CTAP2 {
         }
         // We don't actually use any CBOR here, simplify copying
         attestation.setCert(inBuf, (short) 1, (short) (bufLen - 1));
-        returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
+        MessageDigest dig = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
+        short len = (short) (dig.doFinal(attestation.x509cert, (short) 0, attestation.x509len, inBuf, (short) 1) + 1);
+        inBuf[0] = 0x00;
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(len);
+        apdu.sendBytesLong(inBuf, (short) 0, len);
     }
 
     public void authMakeCredential(APDU apdu, byte[] buffer, short bufLen) {
@@ -684,13 +686,5 @@ public class CTAP2 {
 
     }
 
-    private void checkCert(APDU apdu) {
-        MessageDigest dig = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
-        short len = (short) (dig.doFinal(attestation.x509cert, (short) 0, attestation.x509len, inBuf, (short) 1) + 1);
-        inBuf[0] = 0x00;
-        apdu.setOutgoing();
-        apdu.setOutgoingLength(len);
-        apdu.sendBytesLong(inBuf, (short) 0, len);
-    }
 
 }
