@@ -37,6 +37,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private Signature localSignature;
     private FIDOAPI fidoImpl;
     private CTAP2 ctapImpl;
+    private byte[] hdr;
 
     private static final byte FIDO_INS_ENROLL = (byte)0x01;
     private static final byte FIDO_INS_SIGN = (byte)0x02;
@@ -133,7 +134,8 @@ public class U2FApplet extends Applet implements ExtendedLength {
 
         ctapImpl = new CTAP2();
         fidoImpl = new FIDOStandalone();
-    }
+        hdr = JCSystem.makeTransientByteArray((short) 7, JCSystem.CLEAR_ON_DESELECT);
+        }
 
 
     private void handleEnroll(APDU apdu) throws ISOException {
@@ -378,27 +380,28 @@ public class U2FApplet extends Applet implements ExtendedLength {
     }
 
     public void process(APDU apdu) throws ISOException {
+        // Odd issue here, believe we should copy the APDU header to resolve.
         byte[] buffer = apdu.getBuffer();
+        Util.arrayCopyNonAtomic(buffer, (short) 0, hdr, (short) 0, apdu.getOffsetCdata());
+        
         if (selectingApplet()) {
             Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
             apdu.setOutgoingAndSend((short)0, (short) Utf8Strings.UTF8_U2F.length);
             return;
         }
 
-        if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
-            if (buffer[ISO7816.OFFSET_INS] == FIDO2_INS_NFCCTAP_MSG) {
+        if ((hdr[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
+            if (hdr[ISO7816.OFFSET_INS] == FIDO2_INS_NFCCTAP_MSG) {
                 ctapImpl.handle(apdu);
-                return;
             } else {
                 ISOException.throwIt((short) 0x6D01);
-                
             }
         } else {
             if (!ctapImpl.attestation.isCertSet()) {
                 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
                 return;
             }
-            switch (buffer[ISO7816.OFFSET_INS]) {
+            switch (hdr[ISO7816.OFFSET_INS]) {
                 case FIDO_INS_ENROLL:
                     handleEnroll(apdu);
                     break;
