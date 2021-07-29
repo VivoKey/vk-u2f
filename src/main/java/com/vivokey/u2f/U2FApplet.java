@@ -367,7 +367,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
         }
     }
 
-    public void process(APDU apdu) throws ISOException {
+    public void process(APDU apdu) {
         // Odd issue here, believe we should copy the APDU header to resolve.
         byte[] buffer = apdu.getBuffer();
         hdr[0] = buffer[0];
@@ -379,47 +379,32 @@ public class U2FApplet extends Applet implements ExtendedLength {
             apdu.setOutgoingAndSend((short) 0, (short) Utf8Strings.UTF8_U2F.length);
             return;
         }
-        // Process CTAP1 stuff first
-        if(apdu.isISOInterindustryCLA()) {
-            if (!ctapImpl.attestation.isCertSet()) {
-                ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-                return;
-            }
-            switch (hdr[ISO7816.OFFSET_INS]) {
-                case FIDO_INS_ENROLL:
-                    handleEnroll(apdu);
-                    break;
-                case FIDO_INS_SIGN:
-                    handleSign(apdu);
-                    break;
-                case FIDO_INS_VERSION:
-                    handleVersion(apdu);
-                    break;
-                case ISO_INS_GET_DATA:
-                    handleGetData(apdu);
-                    break;
-                case FIDO_INS_RESET_ATTEST:
-                default:
-                    ISOException.throwIt((short) 0x6D02);
-            }
-        } else if ((hdr[ISO7816.OFFSET_CLA] & (byte) 0x80) == (byte) 0x80){
-            switch (hdr[ISO7816.OFFSET_INS]) {
-                case FIDO2_INS_NFCCTAP_MSG:
-                    try {
-                        ctapImpl.handle(apdu);
-                        break;
-                    } catch (ISOException e) {
-                        ISOException.throwIt(e.getReason());
-                        break;
-                    }
-                    
-                default:
-                    ISOException.throwIt((short) 0x6D01);
-            }
-        } else {
-            ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
+        // Check if interindustry and no cert set
+        if (apdu.isISOInterindustryCLA() && !ctapImpl.attestation.isCertSet()) {
+            ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+            return;
         }
-        
+        switch (hdr[ISO7816.OFFSET_INS]) {
+            case FIDO_INS_ENROLL:
+                handleEnroll(apdu);
+                break;
+            case FIDO_INS_SIGN:
+                handleSign(apdu);
+                break;
+            case FIDO_INS_VERSION:
+                handleVersion(apdu);
+                break;
+            case ISO_INS_GET_DATA:
+                handleGetData(apdu);
+                break;
+            case FIDO2_INS_NFCCTAP_MSG:
+                ctapImpl.handle(apdu);
+                break;
+            case FIDO_INS_RESET_ATTEST:
+            default:
+                ISOException.throwIt((short) 0x6D02);
+        }
+
     }
 
     public static void install(byte[] bArray, short bOffset, byte bLength) throws ISOException {
