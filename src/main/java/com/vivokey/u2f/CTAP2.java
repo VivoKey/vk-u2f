@@ -646,13 +646,13 @@ public class CTAP2 {
                 chainRam[0] = 0;
             }
             // Copy buffer
-            chainRam[1] = (short) (vars[4] - apdu.getOffsetCdata());
+            chainRam[1] = vars[4];
             // chainRam[0] is the current point in the buffer we start from
             chainRam[0] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, chainRam[0], chainRam[1]);
             return 0x00;
         } else if (isChaining[0]) {
             // Must be the last of the chaining - make the copy and return the length.
-            chainRam[1] = (short) (vars[4] - apdu.getOffsetCdata());
+            chainRam[1] = vars[4];
             chainRam[0] = Util.arrayCopyNonAtomic(buffer, apdu.getOffsetCdata(), inBuf, chainRam[0], chainRam[1]);
             isChaining[0] = false;
             isChaining[1] = true;
@@ -669,7 +669,7 @@ public class CTAP2 {
             // The APDU needs a multi-stage copy
             // First, copy the current data buffer in
             // Get the number of bytes in the data buffer that are the Lc, vars[5] will do
-            vars[5] = (short) (vars[4] - apdu.getOffsetCdata());
+            vars[5] = vars[4];
             // Make the copy, vars[3] is bytes remaining to get
             vars[4] = 0;
             while (vars[3] > 0) {
