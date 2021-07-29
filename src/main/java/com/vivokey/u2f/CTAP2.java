@@ -701,10 +701,10 @@ public class CTAP2 {
             outChainRam[1] += 256;
             if(outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
-                ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
+                ISOException.throwIt((short) 0x6100);
             } else {
                 // Less than, so say how many bytes are left.
-                ISOException.throwIt( (short) (ISO7816.SW_BYTES_REMAINING_00 | (byte) outChainRam[0]));
+                ISOException.throwIt( (short) (0x6100 | (byte) outChainRam[0]));
             }
         } else {
             // This is the last message
@@ -736,10 +736,12 @@ public class CTAP2 {
             // Throw the 61 xx
             if(outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
-                ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
+                ISOException.throwIt((short) 0x6100);
+                return;
             } else {
                 // Less than, so say how many bytes are left.
                 ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
+                return;
             }
         } else {
             // Chaining not necessary, send in one go
@@ -749,9 +751,6 @@ public class CTAP2 {
             apdu.sendBytesLong(inBuf, (short) 0, dataLen);
             ISOException.throwIt(ISO7816.SW_NO_ERROR);
         }
-
-        
-
     }
     /**
      * Checks if chaining is set for U2FApplet

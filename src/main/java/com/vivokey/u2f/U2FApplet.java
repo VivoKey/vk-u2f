@@ -390,7 +390,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 ctapImpl.handle(apdu);
                 return;
             } else {
-                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+                ISOException.throwIt((short) 0x6D01);
                 
             }
         } else {
@@ -413,7 +413,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
                     break;
                 case FIDO_INS_RESET_ATTEST:
                 default:
-                    ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+                    ISOException.throwIt((short) 0x6D02);
             }
         }
     }
