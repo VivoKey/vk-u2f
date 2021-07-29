@@ -231,8 +231,9 @@ public class CTAP2 {
         // We don't actually use any CBOR here, simplify copying
         attestation.setCert(inBuf, (short) 1, (short) (bufLen - 1));
         MessageDigest dig = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
-        short len = (short) (dig.doFinal(attestation.x509cert, (short) 0, attestation.x509len, inBuf, (short) 1) + 1);
+        short len = (short) (dig.doFinal(attestation.x509cert, (short) 0, attestation.x509len, inBuf, (short) 3) + 3);
         inBuf[0] = 0x00;
+        Util.setShort(inBuf, (short) 1, attestation.x509len);
         apdu.setOutgoing();
         apdu.setOutgoingLength(len);
         apdu.sendBytesLong(inBuf, (short) 0, len);
