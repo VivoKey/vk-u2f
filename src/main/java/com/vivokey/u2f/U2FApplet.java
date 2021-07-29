@@ -401,7 +401,11 @@ public class U2FApplet extends Applet implements ExtendedLength {
                     handleVersion(apdu);
                     break;
                 case ISO_INS_GET_DATA:
-                    handleGetData(apdu);
+                    if(ctapImpl.isChaining()) {
+                        ctapImpl.getData(apdu);
+                    } else {
+                        handleGetData(apdu);
+                    }
                     break;
                 case FIDO_INS_RESET_ATTEST:
                 default:

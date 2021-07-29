@@ -43,6 +43,8 @@ public class CTAP2 {
     private boolean persoComplete;
     private boolean[] isChaining;
     private short[] chainRam;
+    private short[] outChainRam;
+    private boolean[] isOutChaining;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -131,7 +133,8 @@ public class CTAP2 {
         persoComplete = false;
         isChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
         chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
-
+        outChainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
+        isOutChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
     }
 
     public void handle(APDU apdu) {
@@ -340,11 +343,9 @@ public class CTAP2 {
                 enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
                 enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
                 // Now set this whole array into the other CBOR
-                cborEncoder.encodeByteString(packed, (short) 0, (short) (enc2.getCurrentOffset() - 1));
+                cborEncoder.encodeByteString(packed, (short) 0,enc2.getCurrentOffset());
                 // We're actually done, send this out
-                apdu.setOutgoing();
-                apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset() - 1));
-                apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
+                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
             }
         } catch (ISOException e) {
             // We redo ISOExceptions as a CBOR error
@@ -386,9 +387,7 @@ public class CTAP2 {
             }
             nextAssertion[0] = (short) 1;
             // Emit this as a response
-            apdu.setOutgoing();
-            apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset() - 1));
-            apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
+            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
         } catch (Exception e) {
             returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
@@ -423,9 +422,7 @@ public class CTAP2 {
 
                 nextAssertion[0]++;
                 // Emit this as a response
-                apdu.setOutgoing();
-                apdu.setOutgoingLength((short) (cborEncoder.getCurrentOffset() - 1));
-                apdu.sendBytesLong(inBuf, (short) 0, (short) (cborEncoder.getCurrentOffset() - 1));
+                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
             }
         } catch (Exception e) {
             returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
@@ -540,9 +537,8 @@ public class CTAP2 {
             JCSystem.commitTransaction();
         }
         // Send it
-        apdu.setOutgoing();
-        apdu.setOutgoingLength((short) info.length);
-        apdu.sendBytesLong(info, (short) 0, (short) info.length);
+        Util.arrayCopyNonAtomic(info, (short) 0, inBuf, (short) 0, (short)info.length);
+        sendLongChaining(apdu, (short) info.length);
     }
 
     /**
@@ -685,6 +681,79 @@ public class CTAP2 {
             return vars[4];
         }
 
+    }
+
+    /**
+     * Gets 256 or fewer bytes from inBuf.
+     * @param apdu
+     */
+    public void getData(APDU apdu) {
+        if(outChainRam[0] > 256) {
+            // More to go after this
+            outChainRam[0] -= 256;
+            apdu.setOutgoing();
+            apdu.setOutgoingLength((short) 256);
+            apdu.sendBytesLong(inBuf, outChainRam[1], (short) 256);
+            outChainRam[1] += 256;
+            if(outChainRam[0] > 255) {
+                // More than 255 (at least 256) to go, so 256 more
+                ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
+            } else {
+                // Less than, so say how many bytes are left.
+                ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
+            }
+        } else {
+            // This is the last message
+            apdu.setOutgoing();
+            apdu.setOutgoingLength(outChainRam[0]);
+            apdu.sendBytesLong(inBuf, outChainRam[1], outChainRam[0]);
+            isOutChaining[0] = false;
+            outChainRam[0] = 0;
+            outChainRam[1] = 0;
+            ISOException.throwIt(ISO7816.SW_NO_ERROR);
+        }
+    }
+    /**
+     * Set chaining flags to send dataLen bytes from inLen via chaining, if necessary.
+     * @param apdu
+     */
+    public void sendLongChaining(APDU apdu, short dataLen) {
+        if(dataLen > 256) {
+            // Set the chaining boolean to 1
+            isOutChaining[0] = true;
+            // All the bytes are in inBuf already
+            // Set the chaining remainder to dataLen minus 255
+            outChainRam[0] = (short) (dataLen - 256);
+            // Send the first 255 bytes out
+            apdu.setOutgoing();
+            apdu.setOutgoingLength((short) 256);
+            apdu.sendBytesLong(inBuf, (short) 0, (short) 256);
+            outChainRam[1] = 256;
+            // Throw the 61 xx
+            if(outChainRam[0] > 255) {
+                // More than 255 (at least 256) to go, so 256 more
+                ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
+            } else {
+                // Less than, so say how many bytes are left.
+                ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
+            }
+        } else {
+            // Chaining not necessary, send in one go
+            isOutChaining[0] = false;
+            apdu.setOutgoing();
+            apdu.setOutgoingLength(dataLen);
+            apdu.sendBytesLong(inBuf, (short) 0, dataLen);
+        }
+
+        
+
+    }
+    /**
+     * Checks if chaining is set for U2FApplet
+     * @return
+     */
+    public boolean isChaining() {
+        return isOutChaining[0];
     }
 
 
