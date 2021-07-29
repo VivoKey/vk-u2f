@@ -101,6 +101,7 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
+    public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x45;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -171,6 +172,9 @@ public class CTAP2 {
                 break;
             case FIDO2_VENDOR_ATTEST_GETPUB:
                 getAttestPublic(apdu, buffer, vars[3]);
+                break;
+            case FIDO2_VENDOR_ATTEST_GETCERT:
+                getCert(apdu);
                 break;
             default:
                 returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
@@ -754,6 +758,12 @@ public class CTAP2 {
      */
     public boolean isChaining() {
         return isOutChaining[0];
+    }
+
+    private void getCert(APDU apdu) {
+        inBuf[0] = 0x00;
+        vars[0] = (short)(attestation.getCert(inBuf, (short) 1)+1);
+        sendLongChaining(apdu, vars[0]);
     }
 
 
