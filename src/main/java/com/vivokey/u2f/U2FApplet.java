@@ -295,6 +295,11 @@ public class U2FApplet extends Applet implements ExtendedLength {
     }
 
     private void handleGetData(APDU apdu) throws ISOException {
+        
+        if(ctapImpl.isChaining()) {
+            ctapImpl.getData(apdu);
+            return;
+        }
         byte[] buffer = apdu.getBuffer();
         short currentOffset = Util.getShort(scratch, SCRATCH_CURRENT_OFFSET);
         short fullLength = Util.getShort(scratch, SCRATCH_FULL_LENGTH);
@@ -404,12 +409,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
                     handleVersion(apdu);
                     break;
                 case ISO_INS_GET_DATA:
-                    if(ctapImpl.isChaining()) {
-                        ctapImpl.getData(apdu);
-                        return;
-                    } else {
-                        handleGetData(apdu);
-                    }
+                    handleGetData(apdu);
                     break;
                 case FIDO_INS_RESET_ATTEST:
                 default:

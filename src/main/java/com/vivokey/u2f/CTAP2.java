@@ -704,7 +704,7 @@ public class CTAP2 {
                 ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
             } else {
                 // Less than, so say how many bytes are left.
-                ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
+                ISOException.throwIt( (short) (ISO7816.SW_BYTES_REMAINING_00 | (byte) outChainRam[0]));
             }
         } else {
             // This is the last message
@@ -763,7 +763,7 @@ public class CTAP2 {
 
     private void getCert(APDU apdu) {
         inBuf[0] = 0x00;
-        vars[0] = (short)(attestation.getCert(inBuf, (short) 1)+1);
+        vars[0] = (short) (attestation.getCert(inBuf, (short) 1)+1);
         sendLongChaining(apdu, vars[0]);
     }
 
