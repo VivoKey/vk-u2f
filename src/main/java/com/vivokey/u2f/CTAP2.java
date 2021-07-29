@@ -99,6 +99,7 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
+    public static final byte FIDO2_VENDOR_ATTEST_CHKCERT = (byte) 0x45;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -169,6 +170,8 @@ public class CTAP2 {
             case FIDO2_VENDOR_ATTEST_GETPUB:
                 getAttestPublic(apdu, buffer, vars[3]);
                 break;
+            case FIDO2_VENDOR_ATTEST_CHKCERT:
+                checkCert(apdu);
             default:
                 returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
         }
@@ -195,6 +198,7 @@ public class CTAP2 {
     public void getAttestPublic(APDU apdu, byte[] buffer, short bufLen) {
         if (persoComplete) {
             returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+            return;
         }
         inBuf[0] = 0x00;
         vars[0] = (short) (attestation.getPubkey(inBuf, (short) 1) + 1);
@@ -608,7 +612,7 @@ public class CTAP2 {
     }
 
     /**
-     * \brief Handle the command chaining or extended APDU logic.
+     * Handle the command chaining or extended APDU logic.
      * 
      * Due to the FIDO2 spec requiring support for both extended APDUs and command chaining, we need to implement chaining here.
      * 
@@ -679,4 +683,14 @@ public class CTAP2 {
         }
 
     }
+
+    private void checkCert(APDU apdu) {
+        MessageDigest dig = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
+        short len = (short) (dig.doFinal(attestation.x509cert, (short) 0, attestation.x509len, inBuf, (short) 1) + 1);
+        inBuf[0] = 0x00;
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(len);
+        apdu.sendBytesLong(inBuf, (short) 0, len);
+    }
+
 }

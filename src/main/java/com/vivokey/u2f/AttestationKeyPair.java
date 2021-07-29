@@ -39,8 +39,6 @@ public class AttestationKeyPair {
         // Initialise a signature object
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
-        x509cert = new byte[1200];
-        x509len = 0;
     }
     /**
      * Signs a byte array with the attestation keypair.
@@ -64,8 +62,9 @@ public class AttestationKeyPair {
      * @param inLen length of certificate.
      */
     public void setCert(byte[] inBuf, short inOff, short inLen) {
-        Util.arrayCopy(inBuf, inOff, x509cert, (short) 0, inLen);
+        x509cert = new byte[inLen];
         x509len = inLen;
+        Util.arrayCopy(inBuf, inOff, x509cert, (short) 0, inLen);
     }
 
     /**
@@ -75,8 +74,8 @@ public class AttestationKeyPair {
      * @return the length of the certificate.
      */
     public short getCert(byte[] outBuf, short outOff) {
-        Util.arrayCopy(x509cert, (short) 0, outBuf, outOff, x509len);
-        return x509len;
+        Util.arrayCopy(x509cert, (short) 0, outBuf, outOff, (short) x509cert.length);
+        return (short) x509cert.length;
     }
     /**
      * Checks if the certificate is set.
