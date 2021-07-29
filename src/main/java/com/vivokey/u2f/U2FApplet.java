@@ -77,7 +77,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte P1_IGNORE_PRESENCE_AND_SIGN = (byte) 0x08;
 
     private static final byte ENROLL_LEGACY_VERSION = (byte) 0x05;
-    private static final byte RFU_ENROLL_SIGNED_VERSION[] = { (byte) 0x00 };
+    private static final byte[] RFU_ENROLL_SIGNED_VERSION = { (byte) 0x00 };
 
     private static final short ENROLL_PUBLIC_KEY_OFFSET = (short) 1;
     private static final short APDU_CHALLENGE_OFFSET = (short) 0;
@@ -336,7 +336,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
             outOffset += blockSize;
             currentOffset += blockSize;
             fullLength -= blockSize;
-            if (currentOffset == (short) ctapImpl.attestation.x509len) {
+            if (currentOffset == ctapImpl.attestation.x509len) {
                 if (Util.getShort(scratch, SCRATCH_SIGNATURE_LENGTH) != (short) 0) {
                     scratch[SCRATCH_TRANSPORT_STATE] = TRANSPORT_NOT_EXTENDED_SIGNATURE;
                     currentOffset = (short) 0;
@@ -402,7 +402,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 break;
             case FIDO_INS_RESET_ATTEST:
             default:
-                ISOException.throwIt((short) 0x6D02);
+                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         }
 
     }

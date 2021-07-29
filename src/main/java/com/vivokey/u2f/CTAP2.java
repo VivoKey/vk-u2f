@@ -146,7 +146,6 @@ public class CTAP2 {
             ISOException.throwIt(ISO7816.SW_NO_ERROR);
             return;
         }
-        // TODO: Chaining responses
         // Need to grab the CTAP command byte
         switch (inBuf[0]) {
             case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
@@ -737,11 +736,9 @@ public class CTAP2 {
             if(outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
                 ISOException.throwIt((short) 0x6100);
-                return;
             } else {
                 // Less than, so say how many bytes are left.
                 ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
-                return;
             }
         } else {
             // Chaining not necessary, send in one go
