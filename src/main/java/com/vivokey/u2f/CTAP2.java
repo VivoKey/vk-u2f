@@ -695,9 +695,9 @@ public class CTAP2 {
         if(outChainRam[0] > 256) {
             // More to go after this
             outChainRam[0] -= 256;
-            apdu.setOutgoing();
-            apdu.setOutgoingLength((short) 256);
-            apdu.sendBytesLong(inBuf, outChainRam[1], (short) 256);
+            byte[] buf = apdu.getBuffer();
+            Util.arrayCopyNonAtomic(inBuf, outChainRam[1], buf, (short) 0, (short) 256);
+            apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] += 256;
             if(outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
@@ -708,9 +708,9 @@ public class CTAP2 {
             }
         } else {
             // This is the last message
-            apdu.setOutgoing();
-            apdu.setOutgoingLength(outChainRam[0]);
-            apdu.sendBytesLong(inBuf, outChainRam[1], outChainRam[0]);
+            byte[] buf = apdu.getBuffer();
+            Util.arrayCopyNonAtomic(inBuf, outChainRam[1], buf, (short) 0, outChainRam[0]);
+            apdu.setOutgoingAndSend((short) 0, outChainRam[0]);
             isOutChaining[0] = false;
             outChainRam[0] = 0;
             outChainRam[1] = 0;
@@ -728,10 +728,10 @@ public class CTAP2 {
             // All the bytes are in inBuf already
             // Set the chaining remainder to dataLen minus 255
             outChainRam[0] = (short) (dataLen - 256);
-            // Send the first 255 bytes out
-            apdu.setOutgoing();
-            apdu.setOutgoingLength((short) 256);
-            apdu.sendBytesLong(inBuf, (short) 0, (short) 256);
+            // Send the first 256 bytes out
+            byte[] buf = apdu.getBuffer();
+            Util.arrayCopyNonAtomic(inBuf, (short) 0, buf, (short) 0, (short) 256);
+            apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] = 256;
             // Throw the 61 xx
             if(outChainRam[0] > 255) {
