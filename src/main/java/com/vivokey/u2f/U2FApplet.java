@@ -380,7 +380,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
             return;
         }
         // Process CTAP1 stuff first
-        if(!apdu.isISOInterindustryCLA()) {
+        if(apdu.isISOInterindustryCLA()) {
             if (!ctapImpl.attestation.isCertSet()) {
                 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
                 return;
