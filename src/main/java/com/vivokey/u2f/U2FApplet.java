@@ -382,7 +382,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
     public void process(APDU apdu) throws ISOException {
         // Odd issue here, believe we should copy the APDU header to resolve.
         byte[] buffer = apdu.getBuffer();
-        Util.arrayCopyNonAtomic(buffer, (short) 0, hdr, (short) 0, apdu.getOffsetCdata());
+        hdr[0] = buffer[0];
+        hdr[1] = buffer[1];
+        
         
         if (selectingApplet()) {
             Util.arrayCopyNonAtomic(Utf8Strings.UTF8_U2F, (short)0, buffer, (short)0, (short) Utf8Strings.UTF8_U2F.length);
