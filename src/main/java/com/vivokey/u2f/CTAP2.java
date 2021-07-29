@@ -101,7 +101,7 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_ATTEST_LOADCERT = (byte) 0x42;
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
-    public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x45;
+    public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
