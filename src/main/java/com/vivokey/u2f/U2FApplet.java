@@ -383,12 +383,15 @@ public class U2FApplet extends Applet implements ExtendedLength {
         if ((buffer[ISO7816.OFFSET_CLA] & (byte)0x80) == (byte)0x80) {
             if (buffer[ISO7816.OFFSET_INS] == FIDO2_INS_NFCCTAP_MSG) {
                 ctapImpl.handle(apdu);
+                return;
             } else {
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+                
             }
         } else {
             if (!ctapImpl.attestation.isCertSet()) {
                 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+                return;
             }
             switch (buffer[ISO7816.OFFSET_INS]) {
                 case FIDO_INS_ENROLL:
@@ -403,6 +406,7 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 case ISO_INS_GET_DATA:
                     if(ctapImpl.isChaining()) {
                         ctapImpl.getData(apdu);
+                        return;
                     } else {
                         handleGetData(apdu);
                     }

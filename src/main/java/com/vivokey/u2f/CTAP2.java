@@ -747,6 +747,7 @@ public class CTAP2 {
             apdu.setOutgoing();
             apdu.setOutgoingLength(dataLen);
             apdu.sendBytesLong(inBuf, (short) 0, dataLen);
+            ISOException.throwIt(ISO7816.SW_NO_ERROR);
         }
 
         
