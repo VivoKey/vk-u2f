@@ -405,8 +405,14 @@ public class U2FApplet extends Applet implements ExtendedLength {
         } else if ((hdr[ISO7816.OFFSET_CLA] & (byte) 0x80) == (byte) 0x80){
             switch (hdr[ISO7816.OFFSET_INS]) {
                 case FIDO2_INS_NFCCTAP_MSG:
-                    ctapImpl.handle(apdu);
-                    break;
+                    try {
+                        ctapImpl.handle(apdu);
+                        break;
+                    } catch (ISOException e) {
+                        ISOException.throwIt(e.getReason());
+                        break;
+                    }
+                    
                 default:
                     ISOException.throwIt((short) 0x6D01);
             }
