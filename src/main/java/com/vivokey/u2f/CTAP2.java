@@ -398,11 +398,22 @@ public class CTAP2 {
             // Emit this as a response
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
+        } catch (NullPointerException e) {
+            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
+            buffer[1] = 0x66;
+            buffer[2] = 0x02;
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
         } catch (ISOException e) {
             buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
             Util.setShort(buffer, (short) 1, e.getReason());
             apdu.setOutgoingAndSend((short) 0, (short) 3);
         
+        } catch (CryptoException e) {
+            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
+            buffer[1] = 0x66;
+            buffer[2] = 0x01;
+            Util.setShort(buffer, (short) 3, e.getReason());
+            apdu.setOutgoingAndSend((short) 0, (short) 5);
         } catch (Exception e) {
             buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
             buffer[1] = 0x66;
@@ -471,7 +482,8 @@ public class CTAP2 {
         vars[6] = 0;
         for (vars[7] = 0; vars[7] < discoverableCreds.getLength(); vars[7]++) {
             temp = discoverableCreds.getCred(vars[7]);
-            if (temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
+            // Check for null first...
+            if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
                 // Then valid
                 list[vars[6]++] = temp;
             }
