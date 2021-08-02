@@ -55,7 +55,7 @@ public class AuthenticatorMakeCredential {
         // Read all the objects in map
         for (vars[6] = 0; vars[6] < vars[4]; vars[6]++) {
             // Read the ID type
-            vars[5] = decoder.readRawByte();
+            vars[5] = decoder.readInt8();
             // Do based on the ID
             try {
                 switch (vars[5]) {
