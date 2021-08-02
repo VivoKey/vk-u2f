@@ -112,7 +112,7 @@ public class AuthenticatorMakeCredential {
                         user = new PublicKeyCredentialUserEntity();
                         // Read the map length - should be at least 3
                         vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        // If less than 2, error
+                        // If less than 3, error
                         if (vars[7] < (short) 3) {
                             ISOException.throwIt((short) 0x7030);
                         }
@@ -143,6 +143,9 @@ public class AuthenticatorMakeCredential {
                                 vars[1] = decoder.readByteString(scratch1, (short) 0);
                                 // Set it
                                 user.setDisplayName(scratch1, vars[1]);
+                            } else {
+                                // Is optional, so we need to skip the byteString
+                                decoder.skipEntry();
                             }
 
                         }
