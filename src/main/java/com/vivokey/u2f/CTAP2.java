@@ -374,6 +374,7 @@ public class CTAP2 {
             // Use the first one; this complies with both ideas - use the most recent match
             // if no allow list, use any if an allow list existed
             if (assertionCreds.length == 0 || assertionCreds[0] == null) {
+                // TODO: Currently hitting here, even with a generated credential.
                 returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
                 return;
             }
@@ -408,7 +409,6 @@ public class CTAP2 {
             buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
             Util.setShort(buffer, (short) 1, e.getReason());
             apdu.setOutgoingAndSend((short) 0, (short) 3);
-        
         } catch (CryptoException e) {
             buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
             buffer[1] = 0x66;
