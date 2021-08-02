@@ -33,7 +33,7 @@ public class StoredES256Credential extends StoredCredential {
         Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
         kp.genKeyPair();
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
-        sig.init(kp.getPublic(), Signature.MODE_SIGN);
+        sig.init(kp.getPrivate(), Signature.MODE_SIGN);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
