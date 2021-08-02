@@ -20,6 +20,7 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.CryptoException;
 
 public class AuthenticatorMakeCredential {
     private byte[] dataHash;
@@ -66,7 +67,7 @@ public class AuthenticatorMakeCredential {
                         Util.arrayCopy(scratch1, (short) 0, dataHash, (short) 0, vars[7]);
                         break;
                     } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7001);
+                        ISOException.throwIt((short) 0x7010);
                     }
                 case (short) 2:
                     try {
@@ -103,7 +104,7 @@ public class AuthenticatorMakeCredential {
                         }
                         break;
                     } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7002);
+                        ISOException.throwIt((short) 0x7020);
                     }
 
                 case (short) 3:
@@ -114,7 +115,7 @@ public class AuthenticatorMakeCredential {
                         vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
                         // If less than 2, error
                         if (vars[7] < (short) 3) {
-                            ISOException.throwIt((short) 0x7001);
+                            ISOException.throwIt((short) 0x7030);
                         }
                         // Read the map iteratively
                         for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
@@ -148,7 +149,7 @@ public class AuthenticatorMakeCredential {
                         }
                         break;
                     } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7003);
+                        ISOException.throwIt((short) 0x7030);
                     }
                 case (short) 4:
                     try {
@@ -194,8 +195,14 @@ public class AuthenticatorMakeCredential {
                             // Done
                         }
                         break;
+                    } catch (ISOException e) {
+                        ISOException.throwIt((short) 0x7041);
+                    } catch (CryptoException e) {
+                        ISOException.throwIt((short) 0x7042);
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        ISOException.throwIt((short) 0x7043);
                     } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7004);
+                        ISOException.throwIt((short) 0x7040);
                     }
                 case (short) 7:
 
@@ -219,7 +226,7 @@ public class AuthenticatorMakeCredential {
                             }
                         }
                     } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7005);
+                        ISOException.throwIt((short) 0x7050);
                     }
                 case (short) 5:
                     // Credential exclusion stuff: TODO
