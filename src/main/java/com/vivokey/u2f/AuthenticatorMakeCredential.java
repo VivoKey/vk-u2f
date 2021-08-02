@@ -59,143 +59,167 @@ public class AuthenticatorMakeCredential {
             // Do based on the ID
             switch (vars[5]) {
                 case (short) 1:
-                        dataHash = new byte[32];
+                    try {
                         // Grab and store the data hash
-                        decoder.readByteString(dataHash, (short) 0);
+                        vars[7] = decoder.readByteString(scratch1, (short) 0);
+                        dataHash = new byte[vars[7]];
+                        Util.arrayCopy(scratch1, (short) 0, dataHash, (short) 0, vars[7]);
                         break;
+                    } catch (Exception e) {
+                        ISOException.throwIt((short) 0x7001);
+                    }
                 case (short) 2:
-                    // Rp object, create it
-                    rp = new PublicKeyCredentialRpEntity();
-                    // Read the map length - should be 2
-                    vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    // If less than 2, error
-                    if (vars[7] < (short) 2) {
-                        ISOException.throwIt(ISO7816.SW_DATA_INVALID);
-                    }
-                    // Read the map iteratively
-                    for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-
-                        // Read the text string in
-                        vars[1] = decoder.readByteString(scratch1, (short) 0);
-                        // Check if it equals id
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
-                                (short) 2) == (byte) 0) {
-                            // It does, so read its length
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
-                            // Set it
-                            rp.setRp(scratch1, vars[1]);
-                        } else
-                        // Check if it equals name, if not id
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
-                                (short) 4) == (byte) 0) {
-                            // Read the string into scratch
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
-                            // Set it
-                            rp.setName(scratch1, vars[1]);
-                        }
-
-                    }
-                    break;
-                case (short) 3:
-                    // UserEntity, create
-                    user = new PublicKeyCredentialUserEntity();
-                    // Read the map length - should be at least 3
-                    vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    // If less than 2, error
-                    if (vars[7] < (short) 3) {
-                        ISOException.throwIt(ISO7816.SW_DATA_INVALID);
-                    }
-                    // Read the map iteratively
-                    for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-                        // Read the text string in
-                        vars[1] = decoder.readByteString(scratch1, (short) 0);
-                        // Check if it equals id
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
-                                (short) 2) == (byte) 0) {
-                            // Read the string into scratch
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
-                            // Set it
-                            user.setId(scratch1, (short) 0, vars[1]);
-                        } else
-                        // Check if it equals name, if not id
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
-                                (short) 4) == (byte) 0) {
-                            // Read the string into scratch
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
-                            // Set it
-                            user.setName(scratch1, vars[1]);
-                        } else
-                        // Check if it equals displayName, if not those
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_DISPLAYNAME, (short) 0,
-                                (short) 11) == (byte) 0) {
-                            // Read the string into scratch
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
-                            // Set it
-                            user.setDisplayName(scratch1, vars[1]);
-                        }
-
-                    }
-                    break;
-                case (short) 4:
-                    // pubKeyCredParams - this is the type of credentials usable
-                    // Read the array length
-                    vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
-                    // Create the params object
-                    params = new PublicKeyCredentialParams(vars[0]);
-                    // Process the array
-                    for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                    try {
+                        // Rp object, create it
+                        rp = new PublicKeyCredentialRpEntity();
                         // Read the map length - should be 2
-                        vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        // Iterate over the map
-                        for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
-                            vars[4] = decoder.readByteString(scratch1, (short) 0);
-                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0,
-                                    (short) 3) == (byte) 0) {
-                                // Read the integer type (positive or negative)
-                                if (decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
-                                    // Positive number
-                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
-                                    if (vars[4] == 1) {
-                                        // Single byte
-                                        params.addAlgorithm(scratch2[0]);
-                                    } else if (vars[4] == 2) {
-                                        // A full short
-                                        params.addAlgorithm(Util.makeShort(scratch2[0], scratch2[1]));
-                                    }
-                                } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
-                                    // Negative
-                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
-                                    if (vars[4] == 1) {
-                                        params.addAlgorithm((short) (-1 - scratch2[0]));
-                                    } else if (vars[4] == 2) {
-                                        // Full short
-                                        params.addAlgorithm((short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
-                                    }
-                                }
+                        vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        // If less than 2, error
+                        if (vars[7] < (short) 2) {
+                            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+                        }
+                        // Read the map iteratively
+                        for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
 
+                            // Read the text string in
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
+                            // Check if it equals id
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
+                                    (short) 2) == (byte) 0) {
+                                // It does, so read its length
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                // Set it
+                                rp.setRp(scratch1, vars[1]);
+                            } else
+                            // Check if it equals name, if not id
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
+                                    (short) 4) == (byte) 0) {
+                                // Read the string into scratch
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                // Set it
+                                rp.setName(scratch1, vars[1]);
+                            }
+
+                        }
+                        break;
+                    } catch (Exception e) {
+                        ISOException.throwIt((short) 0x7002);
+                    }
+
+                case (short) 3:
+                    try {
+                        // UserEntity, create
+                        user = new PublicKeyCredentialUserEntity();
+                        // Read the map length - should be at least 3
+                        vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        // If less than 2, error
+                        if (vars[7] < (short) 3) {
+                            ISOException.throwIt((short) 0x7001);
+                        }
+                        // Read the map iteratively
+                        for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
+                            // Read the text string in
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
+                            // Check if it equals id
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
+                                    (short) 2) == (byte) 0) {
+                                // Read the string into scratch
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                // Set it
+                                user.setId(scratch1, (short) 0, vars[1]);
+                            } else
+                            // Check if it equals name, if not id
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
+                                    (short) 4) == (byte) 0) {
+                                // Read the string into scratch
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                // Set it
+                                user.setName(scratch1, vars[1]);
+                            } else
+                            // Check if it equals displayName, if not those
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_DISPLAYNAME, (short) 0,
+                                    (short) 11) == (byte) 0) {
+                                // Read the string into scratch
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                // Set it
+                                user.setDisplayName(scratch1, vars[1]);
+                            }
+
+                        }
+                        break;
+                    } catch (Exception e) {
+                        ISOException.throwIt((short) 0x7003);
+                    }
+                case (short) 4:
+                    try {
+                        // pubKeyCredParams - this is the type of credentials usable
+                        // Read the array length
+                        vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                        // Create the params object
+                        params = new PublicKeyCredentialParams(vars[0]);
+                        // Process the array
+                        for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                            // Read the map length - should be 2
+                            vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                            // Iterate over the map
+                            for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
+                                vars[4] = decoder.readByteString(scratch1, (short) 0);
+                                if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0,
+                                        (short) 3) == (byte) 0) {
+                                    // Read the integer type (positive or negative)
+                                    if (decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
+                                        // Positive number
+                                        vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        if (vars[4] == 1) {
+                                            // Single byte
+                                            params.addAlgorithm(scratch2[0]);
+                                        } else if (vars[4] == 2) {
+                                            // A full short
+                                            params.addAlgorithm(Util.makeShort(scratch2[0], scratch2[1]));
+                                        }
+                                    } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                        // Negative
+                                        vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        if (vars[4] == 1) {
+                                            params.addAlgorithm((short) (-1 - scratch2[0]));
+                                        } else if (vars[4] == 2) {
+                                            // Full short
+                                            params.addAlgorithm(
+                                                    (short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
+                                        }
+                                    }
+
+                                }
+                            }
+                            // Done
+                        }
+                        break;
+                    } catch (Exception e) {
+                        ISOException.throwIt((short) 0x7004);
+                    }
+                case (short) 7:
+
+                    try {
+                        // Options map
+                        // Parse the two rk and uv objects
+                        // Read the map
+                        vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                            // Parse the map
+                            vars[2] = decoder.readByteString(scratch1, (short) 0);
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
+                                    (short) 2) == (short) 0) {
+                                // Is the user validation bit
+                                options[1] = decoder.readBoolean();
+                            }
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
+                                    (short) 2) == (short) 0) {
+                                // Is the resident key bit
+                                options[0] = decoder.readBoolean();
                             }
                         }
-                        // Done
-                    }
-                    break;
-                case (short) 7:
-                    // Options map
-                    // Parse the two rk and uv objects
-                    // Read the map
-                    vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
-                        // Parse the map
-                        vars[2] = decoder.readByteString(scratch1, (short) 0);
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
-                                (short) 2) == (short) 0) {
-                            // Is the user validation bit
-                            options[1] = decoder.readBoolean();
-                        }
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
-                                (short) 2) == (short) 0) {
-                            // Is the resident key bit
-                            options[0] = decoder.readBoolean();
-                        }
+                    } catch (Exception e) {
+                        ISOException.throwIt((short) 0x7005);
                     }
                 case (short) 5:
                     // Credential exclusion stuff: TODO
