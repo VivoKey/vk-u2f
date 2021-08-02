@@ -154,7 +154,12 @@ public class AuthenticatorMakeCredential {
                     try {
                         // pubKeyCredParams - this is the type of credentials usable
                         // Read the array length
-                        vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                        try {
+                            vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                        } catch (ISOException e) {
+                            ISOException.throwIt(Util.makeShort((byte) 0xB4, (byte) decoder.getCurrentOffset()));
+                        }
+                        
                         // Create the params object
                         params = new PublicKeyCredentialParams(vars[0]);
                         // Process the array
@@ -163,7 +168,7 @@ public class AuthenticatorMakeCredential {
                             try {
                                 vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
                             } catch (ISOException e) {
-                                ISOException.throwIt(Util.makeShort((byte) 0x74, (byte) vars[1]));
+                                ISOException.throwIt(Util.makeShort((byte) 0x74, (byte) decoder.getCurrentOffset()));
                             } 
                             // Iterate over the map
                             for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
@@ -173,7 +178,11 @@ public class AuthenticatorMakeCredential {
                                     // Read the integer type (positive or negative)
                                     if (decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
                                         // Positive number
-                                        vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        try {
+                                            vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        } catch (ISOException e) {
+                                            ISOException.throwIt(Util.makeShort((byte) 0x94, (byte) decoder.getCurrentOffset()));
+                                        }
                                         if (vars[4] == 1) {
                                             // Single byte
                                             params.addAlgorithm(scratch2[0]);
@@ -183,7 +192,11 @@ public class AuthenticatorMakeCredential {
                                         }
                                     } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
                                         // Negative
-                                        vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        try {
+                                            vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                        } catch (ISOException e) {
+                                            ISOException.throwIt(Util.makeShort((byte) 0xA4, (byte) decoder.getCurrentOffset()));
+                                        }
                                         if (vars[4] == 1) {
                                             params.addAlgorithm((short) (-1 - scratch2[0]));
                                         } else if (vars[4] == 2) {
@@ -209,6 +222,15 @@ public class AuthenticatorMakeCredential {
                         }
                         if (e.getReason() == ISO7816.SW_DATA_INVALID) {
                             ISOException.throwIt((short) 0x7045);
+                        }
+                        if((short) (e.getReason() & (short) 0x9400) == (short) 0x9400) {
+                            ISOException.throwIt(e.getReason());
+                        }
+                        if((short) (e.getReason() & (short) 0xA400) == (short) 0xA400) {
+                            ISOException.throwIt(e.getReason());
+                        }
+                        if((short) (e.getReason() & (short) 0xB400) == (short) 0xB400) {
+                            ISOException.throwIt(e.getReason());
                         }
                         if((short) (e.getReason() & (short) 0x8400) == (short) 0x8400) {
                             ISOException.throwIt(e.getReason());
