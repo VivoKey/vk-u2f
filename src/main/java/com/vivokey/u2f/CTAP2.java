@@ -375,6 +375,7 @@ public class CTAP2 {
             // if no allow list, use any if an allow list existed
             if (assertionCreds.length == 0 || assertionCreds[0] == null) {
                 returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
+                return;
             }
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
