@@ -190,12 +190,18 @@ public class AuthenticatorMakeCredential {
                                         }
                                     }
 
+                                } else {
+                                    // Must be the public key, so we need to skip the next thing
+                                    decoder.skipEntry();
                                 }
                             }
                             // Done
                         }
                         break;
                     } catch (ISOException e) {
+                        if(e.getReason() == (short) 0x7044) {
+                            ISOException.throwIt((short) 0x7044);
+                        }
                         ISOException.throwIt((short) 0x7041);
                     } catch (CryptoException e) {
                         ISOException.throwIt((short) 0x7042);
