@@ -84,7 +84,7 @@ public class CBORDecoder extends CBORBase {
             case TYPE_TAG:
             case TYPE_FLOAT:
             default:
-            
+
         }
         return getCurrentOffset();
     }
@@ -101,6 +101,7 @@ public class CBORDecoder extends CBORBase {
     public short readMajorType(byte majorType) {
         if (majorType != getMajorType()) {
             ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            return 0;
         }
         return readLength();
     }
