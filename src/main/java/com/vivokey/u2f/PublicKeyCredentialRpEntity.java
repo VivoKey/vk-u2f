@@ -44,7 +44,7 @@ public class PublicKeyCredentialRpEntity extends PublicKeyCredentialEntity {
     }
 
     public void getRp(byte[] buf, short off) {
-        Util.arrayCopy(rpId.str, rpId.len, buf, off, rpId.len);
+        Util.arrayCopy(rpId.str, (short) 0, buf, off, rpId.len);
     }
     public short getRpLen() {
         return rpId.len;

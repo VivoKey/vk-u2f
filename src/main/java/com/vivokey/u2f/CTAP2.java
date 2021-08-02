@@ -249,136 +249,122 @@ public class CTAP2 {
 
     public void authMakeCredential(APDU apdu, byte[] buffer, short bufLen) {
         AuthenticatorMakeCredential cred = null;
-        try {
-            // Init the decoder
-            cborDecoder.init(inBuf, (short) 1, bufLen);
-            // create a credential object
-            cred = new AuthenticatorMakeCredential(cborDecoder);
-            // Ask for a time extension
+        // Init the decoder
+        cborDecoder.init(inBuf, (short) 1, bufLen);
+        // create a credential object
+        cred = new AuthenticatorMakeCredential(cborDecoder);
+        // Ask for a time extension
+        APDU.waitExtension();
+        if (cred.isResident()) {
+            // Create the actual credential
+            StoredCredential residentCred = null;
+            switch (cred.getAlgorithm()) {
+                case Signature.ALG_ECDSA_SHA_256:
+                    residentCred = new StoredES256Credential(cred);
+                    break;
+                case Signature.ALG_RSA_SHA_256_PKCS1:
+                    residentCred = new StoredRS256Credential(cred);
+                    break;
+                case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
+                    residentCred = new StoredPS256Credential(cred);
+                    break;
+                default:
+                    returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                    break;
+            }
             APDU.waitExtension();
-        } catch (ISOException e) {
-            // We redo ISOExceptions as a CBOR error, but with a twist. Add extra data.
-            buffer[0] = CTAP2_ERR_INVALID_CBOR;
-            Util.setShort(buffer, (short) 1, e.getReason());
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-            return;
-        }
-        try {
-            if (cred.isResident()) {
-                // Create the actual credential
-                StoredCredential residentCred = null;
-                switch (cred.getAlgorithm()) {
-                    case Signature.ALG_ECDSA_SHA_256:
-                        residentCred = new StoredES256Credential(cred);
-                        break;
-                    case Signature.ALG_RSA_SHA_256_PKCS1:
-                        residentCred = new StoredRS256Credential(cred);
-                        break;
-                    case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
-                        residentCred = new StoredPS256Credential(cred);
-                        break;
-                    default:
-                        returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                        break;
-                }
-                APDU.waitExtension();
-                // Add the credential to the resident storage, overwriting if necessary
-                addResident(apdu, buffer, residentCred);
-                // Initialise the output buffer, for CBOR writing.
-                // output buffer needs 0x00 as first byte as status code...
-                inBuf[0] = 0x00;
-                cborEncoder.init(inBuf, (short) 1, (short) 1199);
-                // Create a map in the buffer
-                vars[0] = cborEncoder.startMap((short) 3);
-                // Create the SHA256 hash of the RP ID
-                residentCred.rp.getRp(scratch, (short) 0);
-                // Override it
-                sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), scratch, (short) 0);
-                // Set flags - User presence, user verified, attestation present
-                scratch[32] = (byte) 0x45;
-                // Set the signature counter
-                residentCred.readCounter(scratch, (short) 33);
-                // Read the credential details in
-                vars[0] += residentCred.getAttestedData(scratch, (short) 37);
-                // Put it into the CBOR map
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
-                cborEncoder.encodeByteString(scratch, (short) 0, vars[0]);
-                // Attach the attestation statement format identifier
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
-                // Generate and then attach the attestation format
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
-                // First off create a byte array for the attestation packed array, as it can get
-                // kinda big.
-                byte[] packed;
-                APDU.waitExtension();
-                try {
-                    // Try and use RAM
-                    packed = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_RESET);
-                } catch (Exception e) {
-                    // Not enough RAM - use a non-transient array
-                    packed = new byte[1024];
-                }
-                // Create a second encoder to encode the packed attestation statement
-                CBOREncoder enc2 = new CBOREncoder();
-                enc2.init(packed, (short) 0, (short) 1024);
-                // Create a map with 3 things
-                vars[1] = enc2.startMap((short) 3);
-                // Add the alg label
-                vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
-                // Add the actual algorithm - -7 is 6 as a negative
-                vars[1] += enc2.encodeNegativeUInt8((byte) 6);
-                // Add the actual signature, we should generate this
-                vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
-                // The signature is over the scratch data, first, but with the client data
-                // appended
-                vars[0] += cred.getDataHash(scratch, vars[0]);
-                // Sign into the scratch buffer, but at vars[0] + 1
-                vars[2] = attestation.sign(scratch, (short) 0, vars[0], scratch, (short) (vars[0] + 1));
-                // Create a DER encoding, ffs
-                scratch[(short) (vars[0] + vars[2] + 1)] = (byte) 0x30;
-                // Skip the next one, as it's length of total data - we'll make vars[3] this
-                vars[3] = 3;
-                // This one's 0x02 which is integer type
-                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
-                // This is length of r, the first half of the signature - it'll always be 32
-                // bytes due to signatures being 64
-                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
-                // Copy r in
-                Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])],
-                        (short) 32);
-                vars[3] += 32;
-                // Set the type of s - integer
-                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
-                // Set length of s - 32 bytes
-                scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
-                // Copy s in
-                Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])],
-                        (short) 32);
-                vars[3] += 32;
-                // Set the length of the data
-                scratch[(short) (vars[0] + vars[2] + 2)] = (byte) vars[3];
-                // Set this into the encoder
-                enc2.encodeByteString(scratch, scratch[(short) (vars[0] + vars[2] + 1)], (short) (vars[3] + 1));
-                // Set the x509 now
-                enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
-                enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
-                // Now set this whole array into the other CBOR
-                cborEncoder.encodeByteString(packed, (short) 0, enc2.getCurrentOffset());
-                // We're actually done, send this out
-                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-            } 
-        } catch (CryptoException e) {
-            buffer[0] = CTAP2_ERR_UNSUPPORTED_ALGORITHM;
-            buffer[1] = 0x66;
-            buffer[2] = 0x00;
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
+            // Add the credential to the resident storage, overwriting if necessary
+            addResident(apdu, buffer, residentCred);
+            // Initialise the output buffer, for CBOR writing.
+            // output buffer needs 0x00 as first byte as status code...
+            inBuf[0] = 0x00;
+            cborEncoder.init(inBuf, (short) 1, (short) 1199);
+            // Create a map in the buffer
+            vars[0] = cborEncoder.startMap((short) 3);
+            // Create the SHA256 hash of the RP ID
+            residentCred.rp.getRp(scratch, (short) 0);
+            // Override it
+            sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), scratch, (short) 0);
+            // Set flags - User presence, user verified, attestation present
+            scratch[32] = (byte) 0x45;
+            // Set the signature counter
+            residentCred.readCounter(scratch, (short) 33);
+            // Read the credential details in
+            vars[0] += residentCred.getAttestedData(scratch, (short) 37);
+            // Put it into the CBOR map
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
+            cborEncoder.encodeByteString(scratch, (short) 0, vars[0]);
+            // Attach the attestation statement format identifier
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
+            // Generate and then attach the attestation format
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
+            // First off create a byte array for the attestation packed array, as it can get
+            // kinda big.
+            byte[] packed;
+            APDU.waitExtension();
+            try {
+                // Try and use RAM
+                packed = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_RESET);
+            } catch (Exception e) {
+                // Not enough RAM - use a non-transient array
+                packed = new byte[1024];
+            }
+            // Create a second encoder to encode the packed attestation statement
+            CBOREncoder enc2 = new CBOREncoder();
+            enc2.init(packed, (short) 0, (short) 1024);
+            // Create a map with 3 things
+            vars[1] = enc2.startMap((short) 3);
+            // Add the alg label
+            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
+            // Add the actual algorithm - -7 is 6 as a negative
+            vars[1] += enc2.encodeNegativeUInt8((byte) 6);
+            // Add the actual signature, we should generate this
+            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
+            // The signature is over the scratch data, first, but with the client data
+            // appended
+            vars[0] += cred.getDataHash(scratch, vars[0]);
+            // Sign into the scratch buffer, but at vars[0] + 1
+            vars[2] = attestation.sign(scratch, (short) 0, vars[0], scratch, (short) (vars[0] + 1));
+            // Create a DER encoding, ffs
+            scratch[(short) (vars[0] + vars[2] + 1)] = (byte) 0x30;
+            // Skip the next one, as it's length of total data - we'll make vars[3] this
+            vars[3] = 3;
+            // This one's 0x02 which is integer type
+            scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
+            // This is length of r, the first half of the signature - it'll always be 32
+            // bytes due to signatures being 64
+            scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
+            // Copy r in
+            Util.arrayCopy(scratch, (short) (vars[0] + 1), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])],
+                    (short) 32);
+            vars[3] += 32;
+            // Set the type of s - integer
+            scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x02;
+            // Set length of s - 32 bytes
+            scratch[(short) (vars[0] + vars[2] + vars[3]++)] = (byte) 0x20;
+            // Copy s in
+            Util.arrayCopy(scratch, (short) (vars[0] + 33), scratch, scratch[(short) (vars[0] + vars[2] + vars[3])],
+                    (short) 32);
+            vars[3] += 32;
+            // Set the length of the data
+            scratch[(short) (vars[0] + vars[2] + 2)] = (byte) vars[3];
+            // Set this into the encoder
+            enc2.encodeByteString(scratch, scratch[(short) (vars[0] + vars[2] + 1)], (short) (vars[3] + 1));
+            // Set the x509 now
+            enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
+            enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+            // Now set this whole array into the other CBOR
+            cborEncoder.encodeByteString(packed, (short) 0, enc2.getCurrentOffset());
+            // We're actually done, send this out
+            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
         }
 
     }
 
     public void authGetAssertion(APDU apdu, byte[] buffer, short bufLen) {
         try {
+            // TODO: Check the rpId matches here
             // Decode the CBOR array for the assertion
             cborDecoder.init(inBuf, (short) 1, bufLen);
             assertion = new AuthenticatorGetAssertion(cborDecoder);
@@ -412,8 +398,16 @@ public class CTAP2 {
             // Emit this as a response
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
+        } catch (ISOException e) {
+            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
+            Util.setShort(buffer, (short) 1, e.getReason());
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
+        
         } catch (Exception e) {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
+            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
+            buffer[1] = 0x66;
+            buffer[2] = 0x00;
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
         }
     }
 
