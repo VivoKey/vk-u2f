@@ -373,7 +373,7 @@ public class CTAP2 {
             assertionCreds = findCredentials(apdu, buffer, assertion);
             // Use the first one; this complies with both ideas - use the most recent match
             // if no allow list, use any if an allow list existed
-            if (assertionCreds[0] == null) {
+            if (assertionCreds.length == 0 || assertionCreds[0] == null) {
                 returnError(apdu, buffer, CTAP2_ERR_NO_CREDENTIALS);
             }
             // Create the authenticatorData to sign
@@ -398,6 +398,11 @@ public class CTAP2 {
             // Emit this as a response
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
+        } catch (ArrayIndexOutOfBoundsException e) {
+            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
+            buffer[1] = 0x66;
+            buffer[2] = 0x03;
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
         } catch (NullPointerException e) {
             buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
             buffer[1] = 0x66;
@@ -489,6 +494,11 @@ public class CTAP2 {
             }
         }
         // Trim the list
+
+        // Just check and shortcut if we found none
+        if(vars[6] == 0) {
+            return new StoredCredential[0];
+        }
         StoredCredential[] ret = new StoredCredential[vars[6]];
         // One thing we need to do is reverse the array, because the newest cred should
         // be first
