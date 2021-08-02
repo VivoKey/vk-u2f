@@ -59,18 +59,10 @@ public class AuthenticatorMakeCredential {
             // Do based on the ID
             switch (vars[5]) {
                 case (short) 1:
-                    try {
-                        // 1, so the data here is a client data hash
-                        vars[7] = decoder.readMajorType(CBORBase.TYPE_BYTE_STRING);
-                        // Create the data hash to store here
-                        dataHash = new byte[vars[7]];
+                        dataHash = new byte[32];
                         // Grab and store the data hash
                         decoder.readByteString(dataHash, (short) 0);
                         break;
-                    } catch (ISOException e) {
-                        ISOException.throwIt(Util.makeShort((byte) 0x61, decoder.getMajorType()));
-                    }
-
                 case (short) 2:
                     // Rp object, create it
                     rp = new PublicKeyCredentialRpEntity();
@@ -83,27 +75,21 @@ public class AuthenticatorMakeCredential {
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
 
-                        // Check the object we're looking at's type, it will be TEXT_STRING
-                        vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                         // Read the text string in
-                        decoder.readByteString(scratch1, (short) 0);
+                        vars[1] = decoder.readByteString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
                                 (short) 2) == (byte) 0) {
                             // It does, so read its length
-                            vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
-                            // Read the string into scratch
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             rp.setRp(scratch1, vars[1]);
                         } else
                         // Check if it equals name, if not id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
                                 (short) 4) == (byte) 0) {
-                            // It does, so read its length
-                            vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             rp.setName(scratch1, vars[1]);
                         }
@@ -121,37 +107,29 @@ public class AuthenticatorMakeCredential {
                     }
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-                        // Check the object we're looking at's type, it will be TEXT_STRING
-                        vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                         // Read the text string in
-                        decoder.readByteString(scratch1, (short) 0);
+                        vars[1] = decoder.readByteString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
                                 (short) 2) == (byte) 0) {
-                            // It does, so read its length
-                            vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             user.setId(scratch1, (short) 0, vars[1]);
                         } else
                         // Check if it equals name, if not id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_NAME, (short) 0,
                                 (short) 4) == (byte) 0) {
-                            // It does, so read its length
-                            vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             user.setName(scratch1, vars[1]);
                         } else
                         // Check if it equals displayName, if not those
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_DISPLAYNAME, (short) 0,
                                 (short) 11) == (byte) 0) {
-                            // It does, so read its length
-                            vars[1] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
                             // Read the string into scratch
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             user.setDisplayName(scratch1, vars[1]);
                         }
@@ -170,8 +148,7 @@ public class AuthenticatorMakeCredential {
                         vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
                         // Iterate over the map
                         for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
-                            vars[4] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
-                            decoder.readByteString(scratch1, (short) 0);
+                            vars[4] = decoder.readByteString(scratch1, (short) 0);
                             if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0,
                                     (short) 3) == (byte) 0) {
                                 // Read the integer type (positive or negative)
@@ -208,8 +185,7 @@ public class AuthenticatorMakeCredential {
                     vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
                         // Parse the map
-                        vars[2] = decoder.readMajorType(CBORBase.TYPE_TEXT_STRING);
-                        decoder.readByteString(scratch1, (short) 0);
+                        vars[2] = decoder.readByteString(scratch1, (short) 0);
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
                                 (short) 2) == (short) 0) {
                             // Is the user validation bit
