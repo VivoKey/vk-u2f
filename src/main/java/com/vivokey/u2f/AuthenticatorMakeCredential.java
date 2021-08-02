@@ -226,7 +226,7 @@ public class AuthenticatorMakeCredential {
 
                 }
             } catch (ISOException e) {
-                ISOException.throwIt(Util.makeShort((byte) 0x62, (byte) vars[5]));
+                ISOException.throwIt(Util.makeShort((byte) 0x62, decoder.getMajorType()));
             } catch (ArrayIndexOutOfBoundsException e) {
                 ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) vars[5]));
             } catch (Exception e) {
