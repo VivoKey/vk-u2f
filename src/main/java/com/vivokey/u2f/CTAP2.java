@@ -22,6 +22,7 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.CryptoException;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
 
@@ -141,8 +142,9 @@ public class CTAP2 {
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
         vars[3] = doApduIngestion(apdu);
-        if(vars[3] == 0) {
-            // If zero, we had no ISO error, but there might be a CTAP error to return. Throw either way.
+        if (vars[3] == 0) {
+            // If zero, we had no ISO error, but there might be a CTAP error to return.
+            // Throw either way.
             ISOException.throwIt(ISO7816.SW_NO_ERROR);
             return;
         }
@@ -246,12 +248,20 @@ public class CTAP2 {
     }
 
     public void authMakeCredential(APDU apdu, byte[] buffer, short bufLen) {
+        AuthenticatorMakeCredential cred = null;
         try {
             // Init the decoder
             cborDecoder.init(inBuf, (short) 1, bufLen);
             // create a credential object
-            AuthenticatorMakeCredential cred = new AuthenticatorMakeCredential(cborDecoder);
-
+            cred = new AuthenticatorMakeCredential(cborDecoder);
+        } catch (ISOException e) {
+            // We redo ISOExceptions as a CBOR error, but with a twist. Add extra data.
+            buffer[0] = CTAP2_ERR_INVALID_CBOR;
+            Util.setShort(buffer, (short) 1, e.getReason());
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
+            return;
+        }
+        try {
             if (cred.isResident()) {
                 // Create the actual credential
                 StoredCredential residentCred = null;
@@ -346,13 +356,15 @@ public class CTAP2 {
                 enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
                 enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
                 // Now set this whole array into the other CBOR
-                cborEncoder.encodeByteString(packed, (short) 0,enc2.getCurrentOffset());
+                cborEncoder.encodeByteString(packed, (short) 0, enc2.getCurrentOffset());
                 // We're actually done, send this out
                 sendLongChaining(apdu, cborEncoder.getCurrentOffset());
             }
-        } catch (ISOException e) {
-            // We redo ISOExceptions as a CBOR error
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CBOR);
+        } catch (CryptoException e) {
+            buffer[0] = CTAP2_ERR_UNSUPPORTED_ALGORITHM;
+            buffer[1] = 0x66;
+            buffer[2] = 0x00;
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
         }
 
     }
@@ -540,7 +552,7 @@ public class CTAP2 {
             JCSystem.commitTransaction();
         }
         // Send it
-        Util.arrayCopyNonAtomic(info, (short) 0, inBuf, (short) 0, (short)info.length);
+        Util.arrayCopyNonAtomic(info, (short) 0, inBuf, (short) 0, (short) info.length);
         sendLongChaining(apdu, (short) info.length);
     }
 
@@ -610,15 +622,18 @@ public class CTAP2 {
     // There's only so many ways to do this.
     static boolean isCommandChainingCLA(APDU apdu) {
         byte[] buf = apdu.getBuffer();
-        return ((byte)(buf[0] & (byte)0x10) == (byte)0x10);
+        return ((byte) (buf[0] & (byte) 0x10) == (byte) 0x10);
     }
 
     /**
      * Handle the command chaining or extended APDU logic.
      * 
-     * Due to the FIDO2 spec requiring support for both extended APDUs and command chaining, we need to implement chaining here.
+     * Due to the FIDO2 spec requiring support for both extended APDUs and command
+     * chaining, we need to implement chaining here.
      * 
-     * I didn't want to pollute the logic over in the process function, and it makes sense to do both here.
+     * I didn't want to pollute the logic over in the process function, and it makes
+     * sense to do both here.
+     * 
      * @param apdu
      * @return length of data to be processed. 0 if command chaining's not finished.
      */
@@ -636,9 +651,9 @@ public class CTAP2 {
         // Check what we need to do re APDU buffer, is it full (special case for 1 len)
 
         // If this is a command chaining APDU, swap to that logic
-        if(isCommandChainingCLA(apdu)) {
+        if (isCommandChainingCLA(apdu)) {
             // In the chaining
-            if(!isChaining[0]) {
+            if (!isChaining[0]) {
                 // Must be first chaining APDU
                 isChaining[0] = true;
                 // Prep the variables
@@ -679,7 +694,8 @@ public class CTAP2 {
                 // Pull more bytes
                 vars[5] = apdu.receiveBytes(apdu.getOffsetCdata());
             }
-            // Now we're at the end, here, and the commands expect us to give them a data length. Turns out Le bytes aren't anywhere to be found here.
+            // Now we're at the end, here, and the commands expect us to give them a data
+            // length. Turns out Le bytes aren't anywhere to be found here.
             // The commands use vars[3], so vars[4] will be fine to copy to vars[3].
             return vars[4];
         }
@@ -688,22 +704,23 @@ public class CTAP2 {
 
     /**
      * Gets 256 or fewer bytes from inBuf.
+     * 
      * @param apdu
      */
     public void getData(APDU apdu) {
-        if(outChainRam[0] > 256) {
+        if (outChainRam[0] > 256) {
             // More to go after this
             outChainRam[0] -= 256;
             byte[] buf = apdu.getBuffer();
             Util.arrayCopyNonAtomic(inBuf, outChainRam[1], buf, (short) 0, (short) 256);
             apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] += 256;
-            if(outChainRam[0] > 255) {
+            if (outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
                 ISOException.throwIt((short) 0x6100);
             } else {
                 // Less than, so say how many bytes are left.
-                ISOException.throwIt( (short) (0x6100 | (byte) outChainRam[0]));
+                ISOException.throwIt((short) (0x6100 | (byte) outChainRam[0]));
             }
         } else {
             // This is the last message
@@ -716,12 +733,15 @@ public class CTAP2 {
             ISOException.throwIt(ISO7816.SW_NO_ERROR);
         }
     }
+
     /**
-     * Set chaining flags to send dataLen bytes from inLen via chaining, if necessary.
+     * Set chaining flags to send dataLen bytes from inLen via chaining, if
+     * necessary.
+     * 
      * @param apdu
      */
     public void sendLongChaining(APDU apdu, short dataLen) {
-        if(dataLen > 256) {
+        if (dataLen > 256) {
             // Set the chaining boolean to 1
             isOutChaining[0] = true;
             // All the bytes are in inBuf already
@@ -733,7 +753,7 @@ public class CTAP2 {
             apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] = 256;
             // Throw the 61 xx
-            if(outChainRam[0] > 255) {
+            if (outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
                 ISOException.throwIt((short) 0x6100);
             } else {
@@ -749,8 +769,10 @@ public class CTAP2 {
             ISOException.throwIt(ISO7816.SW_NO_ERROR);
         }
     }
+
     /**
      * Checks if chaining is set for U2FApplet
+     * 
      * @return
      */
     public boolean isChaining() {
@@ -759,9 +781,8 @@ public class CTAP2 {
 
     private void getCert(APDU apdu) {
         inBuf[0] = 0x00;
-        vars[0] = (short) (attestation.getCert(inBuf, (short) 1)+1);
+        vars[0] = (short) (attestation.getCert(inBuf, (short) 1) + 1);
         sendLongChaining(apdu, vars[0]);
     }
-
 
 }
