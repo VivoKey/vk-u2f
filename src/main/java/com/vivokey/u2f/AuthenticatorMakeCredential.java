@@ -65,10 +65,10 @@ public class AuthenticatorMakeCredential {
                         vars[7] = decoder.readByteString(scratch1, (short) 0);
                         dataHash = new byte[vars[7]];
                         Util.arrayCopy(scratch1, (short) 0, dataHash, (short) 0, vars[7]);
-                        break;
                     } catch (Exception e) {
                         ISOException.throwIt((short) 0x7010);
                     }
+                    break;
                 case (short) 2:
                     try {
                         // Rp object, create it
@@ -102,11 +102,10 @@ public class AuthenticatorMakeCredential {
                             }
 
                         }
-                        break;
                     } catch (Exception e) {
                         ISOException.throwIt((short) 0x7020);
                     }
-
+                    break;
                 case (short) 3:
                     try {
                         // UserEntity, create
@@ -147,10 +146,10 @@ public class AuthenticatorMakeCredential {
                             }
 
                         }
-                        break;
                     } catch (Exception e) {
                         ISOException.throwIt((short) 0x7030);
                     }
+                    break;
                 case (short) 4:
                     try {
                         // pubKeyCredParams - this is the type of credentials usable
@@ -203,7 +202,7 @@ public class AuthenticatorMakeCredential {
                             }
                             // Done
                         }
-                        break;
+                        
                     } catch (ISOException e) {
                         if (e.getReason() == (short) 0x7044) {
                             ISOException.throwIt((short) 0x7044);
@@ -211,10 +210,10 @@ public class AuthenticatorMakeCredential {
                         if (e.getReason() == ISO7816.SW_DATA_INVALID) {
                             ISOException.throwIt((short) 0x7045);
                         }
-                        if((e.getReason() & (short) 0x8400) == 0x8400) {
+                        if((short) (e.getReason() & (short) 0x8400) == (short) 0x8400) {
                             ISOException.throwIt(e.getReason());
                         }
-                        if((e.getReason() & (short) 0x7400) == 0x7400) {
+                        if((short) (e.getReason() & (short) 0x7400) == (short) 0x7400) {
                             ISOException.throwIt(e.getReason());
                         }
                         ISOException.throwIt((short) 0x7041);
@@ -225,6 +224,7 @@ public class AuthenticatorMakeCredential {
                     } catch (Exception e) {
                         ISOException.throwIt((short) 0x7040);
                     }
+                    break;
                 case (short) 7:
 
                     try {
@@ -249,6 +249,7 @@ public class AuthenticatorMakeCredential {
                     } catch (Exception e) {
                         ISOException.throwIt((short) 0x7050);
                     }
+                    break;
                 case (short) 5:
                     // Credential exclusion stuff: TODO
                 case (short) 6:

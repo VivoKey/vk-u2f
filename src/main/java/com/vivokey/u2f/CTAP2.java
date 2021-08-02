@@ -268,12 +268,16 @@ public class CTAP2 {
                 switch (cred.getAlgorithm()) {
                     case Signature.ALG_ECDSA_SHA_256:
                         residentCred = new StoredES256Credential(cred);
+                        break;
                     case Signature.ALG_RSA_SHA_256_PKCS1:
                         residentCred = new StoredRS256Credential(cred);
+                        break;
                     case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
                         residentCred = new StoredPS256Credential(cred);
+                        break;
                     default:
                         returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                        break;
                 }
                 // Add the credential to the resident storage, overwriting if necessary
                 addResident(apdu, buffer, residentCred);
