@@ -151,10 +151,10 @@ public class CTAP2 {
         // Need to grab the CTAP command byte
         switch (inBuf[0]) {
             case FIDO2_AUTHENTICATOR_MAKE_CREDENTIAL:
-                authMakeCredential(apdu, buffer, vars[3]);
+                authMakeCredential(apdu, vars[3]);
                 break;
             case FIDO2_AUTHENTICATOR_GET_ASSERTION:
-                authGetAssertion(apdu, buffer, vars[3]);
+                authGetAssertion(apdu, vars[3]);
                 break;
             case FIDO2_AUTHENTICATOR_GET_INFO:
                 authGetInfo(apdu);
@@ -163,32 +163,32 @@ public class CTAP2 {
                 authGetNextAssertion(apdu, buffer);
                 break;
             case FIDO2_VENDOR_ATTEST_SIGN:
-                attestSignRaw(apdu, buffer, vars[3]);
+                attestSignRaw(apdu, vars[3]);
                 break;
             case FIDO2_VENDOR_ATTEST_LOADCERT:
-                attestSetCert(apdu, buffer, vars[3]);
+                attestSetCert(apdu, vars[3]);
                 break;
             case FIDO2_VENDOR_PERSO_COMPLETE:
-                persoComplete(apdu, buffer, vars[3]);
+                persoComplete(apdu);
                 break;
             case FIDO2_VENDOR_ATTEST_GETPUB:
-                getAttestPublic(apdu, buffer, vars[3]);
+                getAttestPublic(apdu);
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
                 break;
             default:
-                returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+                returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
 
     }
 
-    public void persoComplete(APDU apdu, byte[] buffer, short bufLen) {
+    public void persoComplete(APDU apdu) {
         if (attestation.isCertSet() && !persoComplete) {
             persoComplete = true;
-            returnError(apdu, buffer, CTAP1_ERR_SUCCESS);
+            returnError(apdu, CTAP1_ERR_SUCCESS);
         } else {
-            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+            returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
     }
 
@@ -200,9 +200,9 @@ public class CTAP2 {
      * @param inBuf
      * @param bufLen
      */
-    public void getAttestPublic(APDU apdu, byte[] buffer, short bufLen) {
+    public void getAttestPublic(APDU apdu) {
         if (persoComplete) {
-            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+            returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
             return;
         }
         inBuf[0] = 0x00;
@@ -220,9 +220,9 @@ public class CTAP2 {
      * @param inBuf
      * @param bufLen
      */
-    public void attestSignRaw(APDU apdu, byte[] buffer, short bufLen) {
+    public void attestSignRaw(APDU apdu, short bufLen) {
         if (persoComplete) {
-            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+            returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
         Util.arrayCopy(inBuf, (short) 1, scratch, (short) 0, (short) (bufLen - 1));
         inBuf[0] = 0x00;
@@ -232,9 +232,9 @@ public class CTAP2 {
         apdu.sendBytesLong(inBuf, (short) 0, (short) (vars[2] + 1));
     }
 
-    public void attestSetCert(APDU apdu, byte[] buffer, short bufLen) {
+    public void attestSetCert(APDU apdu, short bufLen) {
         if (persoComplete) {
-            returnError(apdu, buffer, CTAP1_ERR_INVALID_COMMAND);
+            returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
         // We don't actually use any CBOR here, simplify copying
         attestation.setCert(inBuf, (short) 1, (short) (bufLen - 1));
@@ -247,7 +247,7 @@ public class CTAP2 {
         apdu.sendBytesLong(inBuf, (short) 0, len);
     }
 
-    public void authMakeCredential(APDU apdu, byte[] buffer, short bufLen) {
+    public void authMakeCredential(APDU apdu, short bufLen) {
         AuthenticatorMakeCredential cred = null;
         // Init the decoder
         cborDecoder.init(inBuf, (short) 1, bufLen);
@@ -269,12 +269,12 @@ public class CTAP2 {
                     residentCred = new StoredPS256Credential(cred);
                     break;
                 default:
-                    returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                    returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                     break;
             }
             APDU.waitExtension();
             // Add the credential to the resident storage, overwriting if necessary
-            addResident(apdu, buffer, residentCred);
+            addResident(apdu, residentCred);
             // Initialise the output buffer, for CBOR writing.
             // output buffer needs 0x00 as first byte as status code...
             inBuf[0] = 0x00;
@@ -362,9 +362,9 @@ public class CTAP2 {
 
     }
 
-    public void authGetAssertion(APDU apdu, byte[] buffer, short bufLen) {
+    public void authGetAssertion(APDU apdu, short bufLen) {
+        byte[] buffer = apdu.getBuffer();
         try {
-            // TODO: Check the rpId matches here
             // Decode the CBOR array for the assertion
             cborDecoder.init(inBuf, (short) 1, bufLen);
             assertion = new AuthenticatorGetAssertion(cborDecoder);
@@ -374,7 +374,7 @@ public class CTAP2 {
             // Use the first one; this complies with both ideas - use the most recent match
             // if no allow list, use any if an allow list existed
             if (assertionCreds.length == 0 || assertionCreds[0] == null) {
-                returnError(apdu, buffer, CTAP2_ERR_NO_CREDENTIALS);
+                returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
             }
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
@@ -457,16 +457,16 @@ public class CTAP2 {
                 sendLongChaining(apdu, cborEncoder.getCurrentOffset());
             }
         } catch (Exception e) {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
+            returnError(apdu, CTAP2_ERR_INVALID_CREDENTIAL);
         }
     }
 
-    private void addResident(APDU apdu, byte[] buffer, StoredCredential cred) {
+    private void addResident(APDU apdu, StoredCredential cred) {
         // Add a Discoverable Credential (resident)
         try {
             discoverableCreds.addCredential(cred);
         } catch (ISOException e) {
-            returnError(apdu, buffer, CTAP2_ERR_INVALID_CREDENTIAL);
+            returnError(apdu, CTAP2_ERR_INVALID_CREDENTIAL);
         }
     }
 
@@ -517,7 +517,8 @@ public class CTAP2 {
      * @param buffer APDU buffer
      * @param err    error code
      */
-    public void returnError(APDU apdu, byte[] buffer, byte err) {
+    public void returnError(APDU apdu, byte err) {
+        byte[] buffer = apdu.getBuffer();
         buffer[0] = err;
         apdu.setOutgoingAndSend((short) 0, (short) 1);
     }
@@ -664,7 +665,7 @@ public class CTAP2 {
         vars[3] = apdu.getIncomingLength();
         // Check if the APDU is too big, we only handle 1200 byte
         if (vars[3] > 1200) {
-            returnError(apdu, buffer, CTAP2_ERR_REQUEST_TOO_LARGE);
+            returnError(apdu, CTAP2_ERR_REQUEST_TOO_LARGE);
             return 0;
         }
         // Check what we need to do re APDU buffer, is it full (special case for 1 len)
