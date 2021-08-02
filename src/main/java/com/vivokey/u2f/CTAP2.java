@@ -254,6 +254,8 @@ public class CTAP2 {
             cborDecoder.init(inBuf, (short) 1, bufLen);
             // create a credential object
             cred = new AuthenticatorMakeCredential(cborDecoder);
+            // Ask for a time extension
+            APDU.waitExtension();
         } catch (ISOException e) {
             // We redo ISOExceptions as a CBOR error, but with a twist. Add extra data.
             buffer[0] = CTAP2_ERR_INVALID_CBOR;
@@ -279,6 +281,7 @@ public class CTAP2 {
                         returnError(apdu, buffer, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
                 }
+                APDU.waitExtension();
                 // Add the credential to the resident storage, overwriting if necessary
                 addResident(apdu, buffer, residentCred);
                 // Initialise the output buffer, for CBOR writing.
@@ -308,6 +311,7 @@ public class CTAP2 {
                 // First off create a byte array for the attestation packed array, as it can get
                 // kinda big.
                 byte[] packed;
+                APDU.waitExtension();
                 try {
                     // Try and use RAM
                     packed = JCSystem.makeTransientByteArray((short) 1024, JCSystem.CLEAR_ON_RESET);
@@ -363,7 +367,7 @@ public class CTAP2 {
                 cborEncoder.encodeByteString(packed, (short) 0, enc2.getCurrentOffset());
                 // We're actually done, send this out
                 sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-            }
+            } 
         } catch (CryptoException e) {
             buffer[0] = CTAP2_ERR_UNSUPPORTED_ALGORITHM;
             buffer[1] = 0x66;
