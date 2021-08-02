@@ -161,7 +161,11 @@ public class AuthenticatorMakeCredential {
                         // Process the array
                         for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
                             // Read the map length - should be 2
-                            vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                            try {
+                                vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                            } catch (ISOException e) {
+                                ISOException.throwIt(Util.makeShort((byte) 0x74, (byte) vars[1]));
+                            } 
                             // Iterate over the map
                             for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
                                 vars[4] = decoder.readByteString(scratch1, (short) 0);
@@ -188,19 +192,30 @@ public class AuthenticatorMakeCredential {
                                             params.addAlgorithm(
                                                     (short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
                                         }
+                                    } else {
+                                        ISOException.throwIt(Util.makeShort((byte) 0x84, (byte) decoder.getCurrentOffset()));
                                     }
 
                                 } else {
                                     // Must be the public key, so we need to skip the next thing
-                                    decoder.skipEntry();
+                                    decoder.readByteString(scratch1, (short) 0);
                                 }
                             }
                             // Done
                         }
                         break;
                     } catch (ISOException e) {
-                        if(e.getReason() == (short) 0x7044) {
+                        if (e.getReason() == (short) 0x7044) {
                             ISOException.throwIt((short) 0x7044);
+                        }
+                        if (e.getReason() == ISO7816.SW_DATA_INVALID) {
+                            ISOException.throwIt((short) 0x7045);
+                        }
+                        if((e.getReason() & (short) 0x8400) == 0x8400) {
+                            ISOException.throwIt(e.getReason());
+                        }
+                        if((e.getReason() & (short) 0x7400) == 0x7400) {
+                            ISOException.throwIt(e.getReason());
                         }
                         ISOException.throwIt((short) 0x7041);
                     } catch (CryptoException e) {
