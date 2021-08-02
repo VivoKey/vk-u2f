@@ -40,7 +40,7 @@ public class AuthenticatorGetAssertion {
         options[0] = true;
         // UV
         options[1] = false;
-        vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+        vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
         // Create scratch
         byte[] scratch;
         try {
