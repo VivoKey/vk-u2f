@@ -29,6 +29,7 @@ public class DomString {
         }
         str = new byte[len];
         Util.arrayCopy(input, (short) 0, str, (short) 0, len);
+        this.len = len;
     }
     /**
      * Checks the equality of a DomString to an inputBuf. 
