@@ -103,6 +103,7 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
+    public static final byte FIDO2_VENDOR_CHECK_FREE = (byte) 0x45;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -128,7 +129,7 @@ public class CTAP2 {
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
         cborEncoder = new CBOREncoder();
-        discoverableCreds = new CredentialArray((short) 10);
+        discoverableCreds = new CredentialArray((short) 4);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
         nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
@@ -176,6 +177,9 @@ public class CTAP2 {
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
+                break;
+            case FIDO2_VENDOR_CHECK_FREE:
+                checkResident(apdu);
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -471,6 +475,13 @@ public class CTAP2 {
         }
     }
 
+    private void checkResident(APDU apdu) {
+        byte[] buffer = apdu.getBuffer();
+        buffer[0] = 0x00;
+        buffer[1] = discoverableCreds.getFirstFree();
+        apdu.setOutgoingAndSend((short) 0, (short) 2);
+    }
+
     /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in
      * assertion
@@ -485,7 +496,7 @@ public class CTAP2 {
         StoredCredential[] list = new StoredCredential[discoverableCreds.getLength()];
         StoredCredential temp;
         vars[6] = 0;
-        for (vars[7] = 0; vars[7] < discoverableCreds.getLength(); vars[7]++) {
+        for (vars[7] = (short) (discoverableCreds.getLength()-1) ; vars[7] >= 0; vars[7]--) {
             temp = discoverableCreds.getCred(vars[7]);
             // Check for null first...
             if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
@@ -493,14 +504,12 @@ public class CTAP2 {
                 list[vars[6]++] = temp;
             }
         }
-        // Trim the list
 
+        // Trim the list
         StoredCredential[] ret = new StoredCredential[vars[6]];
-        // One thing we need to do is reverse the array, because the newest cred should
-        // be first
-        vars[5] = (short) (vars[6] - 1);
-        for (vars[7] = 0; vars[7] < vars[6]; vars[7]++) {
-            ret[vars[7]] = list[vars[5]--];
+        // Trim
+        for(vars[7] = 0; vars[7] < vars[6]; vars[7]++) {
+            ret[vars[7]] = list[vars[7]];
         }
         // Null out the unused stuff
         list = null;
