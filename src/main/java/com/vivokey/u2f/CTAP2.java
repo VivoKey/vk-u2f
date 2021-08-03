@@ -374,12 +374,16 @@ public class CTAP2 {
             assertion = new AuthenticatorGetAssertion(cborDecoder);
             // Match the assertion to the credential
             // Get a list of matching credentials
-            assertionCreds = findCredentials(apdu, buffer, assertion);
+            assertionCreds = findCredentials(apdu, assertion);
             // Use the first one; this complies with both ideas - use the most recent match
             // if no allow list, use any if an allow list existed
             if (assertionCreds.length == 0 || assertionCreds[0] == null) {
                 // TODO: Currently hitting here, even with a generated credential.
-                returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
+                buffer[0] = CTAP2_ERR_NO_CREDENTIALS;
+                Util.arrayCopy(assertion.rpId, (short) 0, buffer, (short) 1, (short) assertion.rpId.length);
+                buffer[(short)(assertion.rpId.length + 1)] = 0x00;
+                vars[0] = Util.arrayCopy(discoverableCreds.getCred((short) 0).rp.rpId.str, (short) 0, buffer, (short) (assertion.rpId.length + 2), discoverableCreds.getCred((short) 0).rp.rpId.len);
+                apdu.setOutgoingAndSend((short) 0, vars[0]);
                 return;
             }
             // Create the authenticatorData to sign
@@ -481,17 +485,15 @@ public class CTAP2 {
         buffer[1] = discoverableCreds.getFirstFree();
         apdu.setOutgoingAndSend((short) 0, (short) 2);
     }
-
-    /**
+ /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in
      * assertion
      * 
      * @param apdu      the APDU to send through for errors
-     * @param buffer    the APDU buffer
      * @param assertion the assertion CTAP object
      * @return an array of StoredCredential objects, null if none matched.
      */
-    private StoredCredential[] findCredentials(APDU apdu, byte[] buffer, AuthenticatorGetAssertion assertion) {
+    private StoredCredential[] findCredentials(APDU apdu, AuthenticatorGetAssertion assertion) {
         // TODO: Need to check for and enforce allow lists
         StoredCredential[] list = new StoredCredential[discoverableCreds.getLength()];
         StoredCredential temp;

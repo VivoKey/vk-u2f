@@ -23,7 +23,6 @@ import javacard.framework.Util;
 public class AuthenticatorGetAssertion {
     public byte[] rpId;
     byte[] clientDataHash;
-    PublicKeyCredentialDescriptor[] allowList;
     boolean[] options;
 
     public AuthenticatorGetAssertion(CBORDecoder decoder) {

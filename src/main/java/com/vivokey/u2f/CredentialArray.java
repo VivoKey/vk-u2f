@@ -66,6 +66,9 @@ public class CredentialArray {
         }
         return null;
     }
+    
+    
+    
     /**
      * Confirms there is no already existing discoverable credential - if it finds one, it returns its location for overwriting.
      * @return the location of a discoverable credential already matching the RP and User IDs, or the first free slot otherwise.
