@@ -368,71 +368,38 @@ public class CTAP2 {
 
     public void authGetAssertion(APDU apdu, short bufLen) {
         byte[] buffer = apdu.getBuffer();
-        try {
-            // Decode the CBOR array for the assertion
-            cborDecoder.init(inBuf, (short) 1, bufLen);
-            assertion = new AuthenticatorGetAssertion(cborDecoder);
-            // Match the assertion to the credential
-            // Get a list of matching credentials
-            assertionCreds = findCredentials(apdu, assertion);
-            // Use the first one; this complies with both ideas - use the most recent match
-            // if no allow list, use any if an allow list existed
-            if (assertionCreds.length == 0 || assertionCreds[0] == null) {
-                // TODO: Currently hitting here, even with a generated credential.
-                buffer[0] = CTAP2_ERR_NO_CREDENTIALS;
-                vars[0] = Util.arrayCopy(assertion.rpId, (short) 0, buffer, (short) 1, (short) assertion.rpId.length);
-                buffer[(short)(vars[0]+1)] = (byte) 0xFF;
-                vars[1] = Util.arrayCopy(discoverableCreds.getCred((short) 0).rp.rpId.str, (short) 0, buffer, (short)(vars[0]+2), discoverableCreds.getCred((short) 0).rp.rpId.len);
-                apdu.setOutgoingAndSend((short) 0, vars[1]);
-                return;
-            }
-            // Create the authenticatorData to sign
-            sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-            scratch[32] = 0x05;
-            assertionCreds[0].readCounter(scratch, (short) 33);
-            // Copy the hash in
-            vars[2] = assertion.getHash(scratch, (short) 37);
-            // Create the output
-
-            // Status flags first
-            inBuf[0] = 0x00;
-            // Create the encoder
-            cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            // Determine if we need 4 or 5 in the array
-            if (assertionCreds.length > 1) {
-                doAssertionCommon(cborEncoder, (short) 5);
-            } else {
-                doAssertionCommon(cborEncoder, (short) 4);
-            }
-            nextAssertion[0] = (short) 1;
-            // Emit this as a response
-            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-
-        } catch (ArrayIndexOutOfBoundsException e) {
-            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
-            buffer[1] = 0x66;
-            buffer[2] = 0x03;
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-        } catch (ISOException e) {
-            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
-            Util.setShort(buffer, (short) 1, e.getReason());
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-        } catch (CryptoException e) {
-            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
-            buffer[1] = 0x66;
-            buffer[2] = 0x01;
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-        } catch (NullPointerException e) {
-            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
-            buffer[1] = 0x66;
-            buffer[2] = 0x02;
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-        } catch (Exception e) {
-            buffer[0] = CTAP2_ERR_INVALID_CREDENTIAL;
-            buffer[1] = 0x66;
-            buffer[2] = 0x00;
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
+        // Decode the CBOR array for the assertion
+        cborDecoder.init(inBuf, (short) 1, bufLen);
+        assertion = new AuthenticatorGetAssertion(cborDecoder);
+        // Match the assertion to the credential
+        // Get a list of matching credentials
+        assertionCreds = findCredentials(apdu, assertion);
+        // Use the first one; this complies with both ideas - use the most recent match
+        // if no allow list, use any if an allow list existed
+        if (assertionCreds.length == 0 || assertionCreds[0] == null) {
+            returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
         }
+        // Create the authenticatorData to sign
+        sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+        scratch[32] = 0x05;
+        assertionCreds[0].readCounter(scratch, (short) 33);
+        // Copy the hash in
+        vars[2] = assertion.getHash(scratch, (short) 37);
+        // Create the output
+
+        // Status flags first
+        inBuf[0] = 0x00;
+        // Create the encoder
+        cborEncoder.init(inBuf, (short) 1, (short) 1199);
+        // Determine if we need 4 or 5 in the array
+        if (assertionCreds.length > 1) {
+            doAssertionCommon(cborEncoder, (short) 5);
+        } else {
+            doAssertionCommon(cborEncoder, (short) 4);
+        }
+        nextAssertion[0] = (short) 1;
+        // Emit this as a response
+        sendLongChaining(apdu, cborEncoder.getCurrentOffset());
     }
 
     /**
@@ -444,29 +411,25 @@ public class CTAP2 {
      * @param inLen
      */
     private void authGetNextAssertion(APDU apdu, byte[] buffer) {
-        try {
-            // Confirm that we have more assertions to do
-            if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
-                // Create the authenticatorData to sign
-                sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-                scratch[32] = 0x05;
-                assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
-                // Copy the hash in
-                vars[2] = assertion.getHash(scratch, (short) 37);
-                // Create the output
+        // Confirm that we have more assertions to do
+        if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
+            // Create the authenticatorData to sign
+            sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+            scratch[32] = 0x05;
+            assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
+            // Copy the hash in
+            vars[2] = assertion.getHash(scratch, (short) 37);
+            // Create the output
 
-                // Status flags first
-                inBuf[0] = 0x00;
-                // Create the encoder
-                cborEncoder.init(inBuf, (short) 1, (short) 1199);
-                doAssertionCommon(cborEncoder, (short) 4);
+            // Status flags first
+            inBuf[0] = 0x00;
+            // Create the encoder
+            cborEncoder.init(inBuf, (short) 1, (short) 1199);
+            doAssertionCommon(cborEncoder, (short) 4);
 
-                nextAssertion[0]++;
-                // Emit this as a response
-                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-            }
-        } catch (Exception e) {
-            returnError(apdu, CTAP2_ERR_INVALID_CREDENTIAL);
+            nextAssertion[0]++;
+            // Emit this as a response
+            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
         }
     }
 
@@ -485,7 +448,8 @@ public class CTAP2 {
         buffer[1] = discoverableCreds.getFirstFree();
         apdu.setOutgoingAndSend((short) 0, (short) 2);
     }
- /**
+
+    /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in
      * assertion
      * 
@@ -498,7 +462,7 @@ public class CTAP2 {
         StoredCredential[] list = new StoredCredential[discoverableCreds.getLength()];
         StoredCredential temp;
         vars[6] = 0;
-        for (vars[7] = (short) (discoverableCreds.getLength()-1) ; vars[7] >= 0; vars[7]--) {
+        for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
             temp = discoverableCreds.getCred(vars[7]);
             // Check for null first...
             if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
@@ -510,7 +474,7 @@ public class CTAP2 {
         // Trim the list
         StoredCredential[] ret = new StoredCredential[vars[6]];
         // Trim
-        for(vars[7] = 0; vars[7] < vars[6]; vars[7]++) {
+        for (vars[7] = 0; vars[7] < vars[6]; vars[7]++) {
             ret[vars[7]] = list[vars[7]];
         }
         // Null out the unused stuff
