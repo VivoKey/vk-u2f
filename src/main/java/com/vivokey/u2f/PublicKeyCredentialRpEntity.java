@@ -21,8 +21,8 @@ import javacard.framework.Util;
 public class PublicKeyCredentialRpEntity extends PublicKeyCredentialEntity {
     DomString rpId;
     
-    public void setRp(byte[] pkId, short len) {
-        rpId = new DomString(pkId, len);
+    public void setRp(byte[] rpId, short len) {
+        this.rpId = new DomString(rpId, len);
     }
     /**
      * Checks the RP ID against the internal DomString.
