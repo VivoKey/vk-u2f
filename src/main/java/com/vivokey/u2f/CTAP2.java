@@ -381,7 +381,7 @@ public class CTAP2 {
                 // TODO: Currently hitting here, even with a generated credential.
                 buffer[0] = CTAP2_ERR_NO_CREDENTIALS;
                 vars[0] = Util.arrayCopy(assertion.rpId, (short) 0, buffer, (short) 1, (short) assertion.rpId.length);
-                buffer[vars[0]+1] = (byte) 0xFF;
+                buffer[(short)(vars[0]+1)] = (byte) 0xFF;
                 vars[1] = Util.arrayCopy(discoverableCreds.getCred((short) 0).rp.rpId.str, (short) 0, buffer, (short)(vars[0]+2), discoverableCreds.getCred((short) 0).rp.rpId.len);
                 apdu.setOutgoingAndSend((short) 0, vars[1]);
                 return;
