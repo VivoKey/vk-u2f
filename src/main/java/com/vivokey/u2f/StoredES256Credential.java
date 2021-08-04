@@ -57,8 +57,8 @@ public class StoredES256Credential extends StoredCredential {
     @Override
     public short getAttestedLen() {
         // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
-        // keytype and curve type, 34 bytes x, 34 bytes y, 75 total)
-        return (short) 109;
+        // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
+        return (short) 111;
     }
 
     @Override
@@ -96,7 +96,7 @@ public class StoredES256Credential extends StoredCredential {
         // That is all
         w = null;
         JCSystem.requestObjectDeletion();
-        return 109;
+        return 111;
     }
 
 }
