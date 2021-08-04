@@ -314,10 +314,7 @@ public class CTAP2 {
         // 
         // Create the SHA256 hash of the RP ID
         residentCred.rp.getRp(scratch, (short) 0);
-        // Copy the SHA256 hash from scratch
-        System.arraycopy(scratch, (short) 0, inBuf, vars[0], (short) 32);
-        vars[0] += 32;
-        sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
+        vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
         // Set flags - User presence, user verified, attestation present
         inBuf[vars[0]++] = (byte) 0x45;
         // Set the signature counter
