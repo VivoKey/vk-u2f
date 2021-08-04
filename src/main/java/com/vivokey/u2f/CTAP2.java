@@ -393,7 +393,15 @@ public class CTAP2 {
         nextAssertion[0] = (short) 0;
         // Decode the CBOR array for the assertion
         cborDecoder.init(inBuf, (short) 1, bufLen);
-        assertion = new AuthenticatorGetAssertion(cborDecoder);
+        try {
+            assertion = new AuthenticatorGetAssertion(cborDecoder);
+        } catch (ISOException e) {
+            byte[] buffer = apdu.getBuffer();
+            buffer[0] = CTAP2_ERR_INVALID_CBOR;
+            Util.setShort(buffer, (short) 1, e.getReason());
+            apdu.setOutgoingAndSend((short) 0, (short) 3);
+            return;
+        }
         // Match the assertion to the credential
         // Get a list of matching credentials
         assertionCreds = findCredentials(apdu, assertion);
@@ -401,6 +409,7 @@ public class CTAP2 {
         // if no allow list, use any if an allow list existed
         if (assertionCreds.length == 0 || assertionCreds[0] == null) {
             returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
+            return;
         }
         // Create the authenticatorData to sign
         sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
@@ -484,19 +493,20 @@ public class CTAP2 {
             for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
                 temp = discoverableCreds.getCred(vars[7]);
                 // Check if null or doesn't match rpId
-                if (temp == null || !temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
-                    continue;
-                }
-                for (vars[5] = 0; vars[5] < (short) assertion.allow.length; vars[5]++) {
-                    // Check the list
-                    // If lengths match, as well as the ids themselves
-                    if ((short) assertion.allow[vars[5]].id.length == (short) temp.id.length
-                            && (Util.arrayCompare(assertion.allow[vars[5]].id, (short) 0, temp.id, (short) 0,
-                                    (short) temp.id.length) == 0)) {
-                        // Add it to the list
-                        list[vars[6]++] = temp;
-                    }
+                if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
+                    for (vars[5] = 0; vars[5] < (short) assertion.allow.length; vars[5]++) {
+                        // Check the list
+                        // Does length match?
+                        if((short) assertion.allow[vars[5]].id.length != (short) temp.id.length) {
+                            continue;
+                        }
+                        if (Util.arrayCompare(assertion.allow[vars[5]].id, (short) 0, temp.id, (short) 0,
+                                        (short) temp.id.length) == 0) {
+                            // Add it to the list
+                            list[vars[6]++] = temp;
+                        }
 
+                    }
                 }
 
             }

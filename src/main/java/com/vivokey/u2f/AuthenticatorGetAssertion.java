@@ -120,7 +120,7 @@ public class AuthenticatorGetAssertion {
     }
 
     public boolean hasAllow() {
-        return (allow != null && allow.length != 0);
+        return (allow != null && allow.length > 0);
     }
     
 }
