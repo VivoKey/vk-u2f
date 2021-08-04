@@ -304,8 +304,6 @@ public class CTAP2 {
             vars[7] = vars[0];
             vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
 
-
-            
             // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
             // Start to build into the cbor array manually, to avoid arrayCopy
@@ -319,18 +317,13 @@ public class CTAP2 {
             attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
 
             // We need to know how big the DER encoding will be
-            // By default it's 0x46, 70 bytes, but can be up to 72 bytes.
+            // By default it's 0x48, 72 bytes, but can be up to 72 bytes.
             // This is because of big-r and big-s signatures in ECSDA needing an appending
             // 00.
-            vars[4] = 0x46;
-            if (scratch[0] > (byte) 0x7F) {
-                vars[4]++;
-            }
-            if (scratch[32] > (byte) 0x7F) {
-                vars[4]++;
-            }
+            vars[4] = 0x48;
+
             // Create a map with 3 things
-            
+
             cborEncoder.startMap((short) 3);
             // Add the alg label
             cborEncoder.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
@@ -350,27 +343,18 @@ public class CTAP2 {
             // Type of r, int
             inBuf[vars[1]++] = 0x02;
             // Turns out if the first byte of r is big, we need to add a zero in front to
-            // ensure it's not seen as negative.
-            if (scratch[0] > (byte) 0x7F) {
-                // Length of r
-                inBuf[vars[1]++] = 0x21;
-                // First byte of r is now 0x00
-                inBuf[vars[1]++] = 0x00;
-            } else {
-                inBuf[vars[1]++] = 0x20;
-            }
+            // ensure it's not seen as negative. So we're doing it anyway, because it's easier.
+            // Length of r
+            inBuf[vars[1]++] = 0x21;
+            // First byte of r is now 0x00
+            inBuf[vars[1]++] = 0x00;
             vars[1] = Util.arrayCopy(scratch, (short) 0, inBuf, vars[1], (short) 32);
             // Type of s, int
             inBuf[vars[1]++] = 0x02;
             // Same as r for s
-            if (scratch[32] > (byte) 0x7F) {
-                // Length of s
-                inBuf[vars[1]++] = 0x21;
-                // First byte of s is now 0x00
-                inBuf[vars[1]++] = 0x00;
-            } else {
-                inBuf[vars[1]++] = 0x20;
-            }
+            inBuf[vars[1]++] = 0x21;
+            // First byte of s is now 0x00
+            inBuf[vars[1]++] = 0x00;
             vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
             // Set the x509 cert now
             cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
@@ -492,11 +476,11 @@ public class CTAP2 {
                     for (vars[5] = 0; vars[5] < (short) assertion.allow.length; vars[5]++) {
                         // Check the list
                         // Does length match?
-                        if((short) assertion.allow[vars[5]].id.length != (short) temp.id.length) {
+                        if ((short) assertion.allow[vars[5]].id.length != (short) temp.id.length) {
                             continue;
                         }
                         if (Util.arrayCompare(assertion.allow[vars[5]].id, (short) 0, temp.id, (short) 0,
-                                        (short) temp.id.length) == 0) {
+                                (short) temp.id.length) == 0) {
                             // Add it to the list
                             list[vars[6]++] = temp;
                         }
@@ -631,7 +615,8 @@ public class CTAP2 {
         cborEncoder.encodeTextString(Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10);
         // Done with tag 1
         cborEncoder.encodeUInt8((byte) 0x02);
-        // Tag 2, which is the Authenticator bindings data (turns out this is excluding the clientDataHash)
+        // Tag 2, which is the Authenticator bindings data (turns out this is excluding
+        // the clientDataHash)
         cborEncoder.encodeByteString(scratch, (short) 0, (short) 37);
         // Tag 3, the signature of said data
         // Put the tag in
