@@ -308,20 +308,6 @@ public class CTAP2 {
             cborEncoder.writeRawByte((byte) 0x03);
             // Start to build into the cbor array manually, to avoid arrayCopy
 
-            // Generate the signature, can't do this directly unfortunately.
-            // We sign over the client data hash and the attested data.
-            // AuthenticatorData is first. We noted down where it begins and know how long
-            // it is.
-            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
-            // The client data hash is next, which we use to finish off the signature.
-            attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
-
-            // We need to know how big the DER encoding will be
-            // By default it's 0x48, 70 bytes, but can be up to 72 bytes.
-            // This is because of big-r and big-s signatures in ECSDA needing an appending
-            // 00.
-            vars[4] = getDerLen(scratch, (short) 0);
-
             // Create a map with 3 things
 
             cborEncoder.startMap((short) 3);
@@ -332,11 +318,16 @@ public class CTAP2 {
             // Add the actual signature, we should generate this
             cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
 
-            // Create the byte string to store the DER encoding.
-            vars[1] = cborEncoder.startByteString(vars[4]);
-
-            // Build the DER format
-            createDerSig(scratch, (short) 0, inBuf, vars[1]);
+            
+            // Generate the signature, can't do this directly unfortunately.
+            // We sign over the client data hash and the attested data.
+            // AuthenticatorData is first. We noted down where it begins and know how long
+            // it is.
+            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
+            // The client data hash is next, which we use to finish off the signature.
+            vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
+            // Create the byte string for the signature
+            cborEncoder.encodeByteString(scratch, (short) 0, vars[4]);
             // Set the x509 cert now
             cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
             // Supposedly we need an array here
@@ -605,11 +596,9 @@ public class CTAP2 {
         // Turns out this is DER encoding, again
 
         // Sign the data
-        assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch, (short) 69);
+        vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch, (short) 69);
         // Create the ByteString to put it into
-        vars[3] = cborEncoder.startByteString(getDerLen(scratch, (short) 69));
-        // Actually form the DerSig
-        createDerSig(scratch, (short) 69, inBuf, vars[3]);
+        cborEncoder.encodeByteString(scratch, (short) 69, vars[3]);
         // Tag 4, user details
         cborEncoder.encodeUInt8((byte) 0x04);
         // Start the PublicKeyCredentialUserEntity map
@@ -810,50 +799,6 @@ public class CTAP2 {
         sendLongChaining(apdu, vars[0]);
     }
 
-    private void createDerSig(byte[] sigBuf, short sigOff, byte[] in, short inOff) {
-        short off = inOff;
-        // Build the DER format directly.
-        // Header
-        in[off++] = (byte) 0x30;
-        // Data length, we know this.
-        in[off++] = (byte) 70;
-        // Type of r, int
-        in[off++] = 0x02;
-        // Turns out if the first byte of r is big, we need to add a zero in front to
-        // ensure it's not seen as negative.
-        if ((byte) (sigBuf[sigOff] & 0x80) == (byte) 0x80) {
-            // Length of r
-            in[off++] = 0x21;
-            // First byte of r is now 0x00
-            in[off++] = 0x00;
-        } else {
-            in[off++] = 0x20;
-        }
-
-        off = Util.arrayCopy(sigBuf, sigOff, in, off, (short) 32);
-        // Type of s, int
-        in[off++] = 0x02;
-        // Same as r for s
-        if((byte)(sigBuf[(short)(sigOff+32)] & 0x80) == (byte)0x80) {
-            in[off++] = 0x21;
-            // First byte of s is now 0x00
-            in[off++] = 0x00;
-        } else {
-            in[off++] = 0x20;
-        }
-        
-        off = Util.arrayCopy(sigBuf, (short) (sigOff + 32), in, off, (short) 32);
-    }
     
-    public short getDerLen(byte[] sigBuf, short sigOff) {
-        short len = 70;
-        if((byte)(sigBuf[sigOff] & 0x80) == (byte)0x80) {
-            len++;
-        }
-        if((byte)(sigBuf[(short)(sigOff+32)] & 0x80) == (byte) 0x80) {
-            len++;
-        }
-        return len;
-    }
 
 }
