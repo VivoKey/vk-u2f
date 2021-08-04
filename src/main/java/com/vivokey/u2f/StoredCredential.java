@@ -29,6 +29,7 @@ public abstract class StoredCredential {
     PublicKeyCredentialUserEntity user;
     PublicKeyCredentialRpEntity rp;
     private byte[] sigCounter;
+    protected boolean initialised;
     protected StoredCredential() {
         if(rng == null) {
             rng = RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
@@ -36,6 +37,7 @@ public abstract class StoredCredential {
         id = new byte[16];
         rng.generateData(id, (short) 0, (short) 16);
         sigCounter = new byte[4];
+        initialised = false;
     }
     // Generic ID check function, for credential IDs
     public boolean checkId(byte[] inBuf, short inOff, short inLen) {

@@ -256,8 +256,6 @@ public class CTAP2 {
         cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
         cred = new AuthenticatorMakeCredential(cborDecoder);
-        // Ask for a time extension
-        APDU.waitExtension();
         if (cred.isResident()) {
             // Create the actual credential
             StoredCredential residentCred = null;

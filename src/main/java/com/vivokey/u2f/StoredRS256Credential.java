@@ -24,26 +24,36 @@ import javacard.security.RSAPublicKey;
 
 public class StoredRS256Credential extends StoredCredential {
     Cipher kpSignature;
+
     public StoredRS256Credential(AuthenticatorMakeCredential inputData) {
         // Generate a new RS256 credential
         kp = new KeyPair(KeyPair.ALG_RSA_CRT, KeyBuilder.LENGTH_RSA_2048);
         kp.genKeyPair();
-        // Generate a signature object
-        kpSignature = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
-        kpSignature.init(kp.getPrivate(), Cipher.MODE_ENCRYPT);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
+
+    private void finaliseInit() {
+        // Generate a signature object
+        kpSignature = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
+        kpSignature.init(kp.getPrivate(), Cipher.MODE_ENCRYPT);
+    }
+
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
+        if (!initialised) {
+            finaliseInit();
+        }
         incrementCounter();
         // Increment sig counter first
         return kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);
-        
+
     }
+
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 6 bytes type and alg + 260 bytes mod inc header, 5 bytes exp inc header)
+        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 6 bytes type
+        // and alg + 260 bytes mod inc header, 5 bytes exp inc header)
         return (short) 306;
     }
 
@@ -55,7 +65,7 @@ public class StoredRS256Credential extends StoredCredential {
         byte[] exp;
         try {
             mod = JCSystem.makeTransientByteArray((short) 256, JCSystem.CLEAR_ON_RESET);
-        } catch (Exception e){
+        } catch (Exception e) {
             mod = new byte[256];
         }
         try {
@@ -89,5 +99,5 @@ public class StoredRS256Credential extends StoredCredential {
         len += enc.encodeByteString(exp, (short) 0, (short) 3);
         return len;
     }
-    
+
 }

@@ -26,26 +26,38 @@ import javacard.security.Signature;
 public class StoredES256Credential extends StoredCredential {
 
     Signature sig;
+
     public StoredES256Credential(AuthenticatorMakeCredential inputData) {
         // Generate a new ES256 credential
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
         Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
         kp.genKeyPair();
-        sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
-        sig.init(kp.getPrivate(), Signature.MODE_SIGN);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
+
+    private void finaliseInit() {
+        // Called to finalise the signature - offload time-consuming tasks
+        sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
+        sig.init(kp.getPrivate(), Signature.MODE_SIGN);
+        initialised = true;
+    }
+
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
-        // Performs the signature as per ES256 
+        // Performs the signature as per ES256
+        if (!initialised) {
+            finaliseInit();
+        }
         incrementCounter();
         return sig.sign(inBuf, inOff, inLen, outBuf, outOff);
-        
+
     }
+
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes keytype and curve type, 34 bytes x, 34 bytes y, 75 total)
+        // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
+        // keytype and curve type, 34 bytes x, 34 bytes y, 75 total)
         return (short) 109;
     }
 
@@ -59,7 +71,7 @@ public class StoredES256Credential extends StoredCredential {
         } catch (Exception e) {
             w = new byte[65];
         }
-        
+
         ((ECPublicKey) kp.getPublic()).getW(w, (short) 0);
         // Form the common params
         doAttestationCommon(buf, off);
@@ -89,6 +101,4 @@ public class StoredES256Credential extends StoredCredential {
         return len;
     }
 
-
-    
 }

@@ -60,14 +60,11 @@ public class AuthenticatorMakeCredential {
             // Do based on the ID
             switch (vars[5]) {
                 case (short) 1:
-                    try {
-                        // Grab and store the data hash
-                        vars[7] = decoder.readByteString(scratch1, (short) 0);
-                        dataHash = new byte[vars[7]];
-                        Util.arrayCopy(scratch1, (short) 0, dataHash, (short) 0, vars[7]);
-                    } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7010);
-                    }
+                    // Grab and store the data hash
+                    // To prevent extra copies, reading raw
+                    vars[7] = decoder.readLength();
+                    dataHash = new byte[vars[7]];
+                    decoder.readRawByteArray(dataHash, (short) 0, vars[7]);
                     break;
                 case (short) 2:
                     try {
@@ -154,125 +151,68 @@ public class AuthenticatorMakeCredential {
                     }
                     break;
                 case (short) 4:
-                    try {
-                        // pubKeyCredParams - this is the type of credentials usable
-                        // Read the array length
-                        try {
-                            vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
-                        } catch (ISOException e) {
-                            ISOException.throwIt(Util.makeShort((byte) 0xB4, (byte) decoder.getCurrentOffset()));
-                        }
-                        
-                        // Create the params object
-                        params = new PublicKeyCredentialParams(vars[0]);
-                        // Process the array
-                        for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
-                            // Read the map length - should be 2
-                            try {
-                                vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                            } catch (ISOException e) {
-                                ISOException.throwIt(Util.makeShort((byte) 0x74, (byte) decoder.getCurrentOffset()));
-                            } 
-                            // Iterate over the map
-                            for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
-                                vars[4] = decoder.readByteString(scratch1, (short) 0);
-                                if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0,
-                                        (short) 3) == (byte) 0) {
-                                    // Read the integer type (positive or negative)
-                                    if (decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
-                                        // Positive number
-                                        try {
-                                            vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
-                                        } catch (ISOException e) {
-                                            ISOException.throwIt(Util.makeShort((byte) 0x94, (byte) decoder.getCurrentOffset()));
-                                        }
-                                        if (vars[4] == 1) {
-                                            // Single byte
-                                            params.addAlgorithm(scratch2[0]);
-                                        } else if (vars[4] == 2) {
-                                            // A full short
-                                            params.addAlgorithm(Util.makeShort(scratch2[0], scratch2[1]));
-                                        }
-                                    } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
-                                        // Negative
-                                        try {
-                                            vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
-                                        } catch (ISOException e) {
-                                            ISOException.throwIt(Util.makeShort((byte) 0xA4, (byte) decoder.getCurrentOffset()));
-                                        }
-                                        if (vars[4] == 1) {
-                                            params.addAlgorithm((short) (-1 - scratch2[0]));
-                                        } else if (vars[4] == 2) {
-                                            // Full short
-                                            params.addAlgorithm(
-                                                    (short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
-                                        }
-                                    } else {
-                                        ISOException.throwIt(Util.makeShort((byte) 0x84, (byte) decoder.getCurrentOffset()));
-                                    }
+                    vars[0] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
 
-                                } else {
-                                    // Must be the public key, so we need to skip the next thing
-                                    decoder.readByteString(scratch1, (short) 0);
+                    // Create the params object
+                    params = new PublicKeyCredentialParams(vars[0]);
+                    // Process the array
+                    for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                        // Read the map length - should be 2
+                        vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        // Iterate over the map
+                        for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
+                            vars[4] = decoder.readByteString(scratch1, (short) 0);
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ALG, (short) 0,
+                                    (short) 3) == (byte) 0) {
+                                // Read the integer type (positive or negative)
+                                if (decoder.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
+                                    // Positive number
+                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                    if (vars[4] == 1) {
+                                        // Single byte
+                                        params.addAlgorithm(scratch2[0]);
+                                    } else if (vars[4] == 2) {
+                                        // A full short
+                                        params.addAlgorithm(Util.makeShort(scratch2[0], scratch2[1]));
+                                    }
+                                } else if (decoder.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                    // Negative
+                                    vars[4] = decoder.readEncodedInteger(scratch2, (short) 0);
+                                    if (vars[4] == 1) {
+                                        params.addAlgorithm((short) (-1 - scratch2[0]));
+                                    } else if (vars[4] == 2) {
+                                        // Full short
+                                        params.addAlgorithm((short) (-1 - Util.makeShort(scratch2[0], scratch2[1])));
+                                    }
                                 }
+
+                            } else {
+                                // Must be the public key, so we need to skip the next thing
+                                decoder.skipEntry();
                             }
-                            // Done
                         }
-                        
-                    } catch (ISOException e) {
-                        if (e.getReason() == (short) 0x7044) {
-                            ISOException.throwIt((short) 0x7044);
-                        }
-                        if (e.getReason() == ISO7816.SW_DATA_INVALID) {
-                            ISOException.throwIt((short) 0x7045);
-                        }
-                        if((short) (e.getReason() & (short) 0x9400) == (short) 0x9400) {
-                            ISOException.throwIt(e.getReason());
-                        }
-                        if((short) (e.getReason() & (short) 0xA400) == (short) 0xA400) {
-                            ISOException.throwIt(e.getReason());
-                        }
-                        if((short) (e.getReason() & (short) 0xB400) == (short) 0xB400) {
-                            ISOException.throwIt(e.getReason());
-                        }
-                        if((short) (e.getReason() & (short) 0x8400) == (short) 0x8400) {
-                            ISOException.throwIt(e.getReason());
-                        }
-                        if((short) (e.getReason() & (short) 0x7400) == (short) 0x7400) {
-                            ISOException.throwIt(e.getReason());
-                        }
-                        ISOException.throwIt((short) 0x7041);
-                    } catch (CryptoException e) {
-                        ISOException.throwIt((short) 0x7042);
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        ISOException.throwIt((short) 0x7043);
-                    } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7040);
+                        // Done
                     }
+
                     break;
                 case (short) 7:
-
-                    try {
-                        // Options map
-                        // Parse the two rk and uv objects
-                        // Read the map
-                        vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
-                            // Parse the map
-                            vars[2] = decoder.readByteString(scratch1, (short) 0);
-                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
-                                    (short) 2) == (short) 0) {
-                                // Is the user validation bit
-                                options[1] = decoder.readBoolean();
-                            }
-                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
-                                    (short) 2) == (short) 0) {
-                                // Is the resident key bit
-                                options[0] = decoder.readBoolean();
-                            }
+                    // Options map
+                    // Parse the two rk and uv objects
+                    // Read the map
+                    vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
+                        // Parse the map
+                        vars[2] = decoder.readByteString(scratch1, (short) 0);
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
+                                (short) 2) == (short) 0) {
+                            // Is the user validation bit
+                            options[1] = decoder.readBoolean();
                         }
-                    } catch (Exception e) {
-                        ISOException.throwIt((short) 0x7050);
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
+                                (short) 2) == (short) 0) {
+                            // Is the resident key bit
+                            options[0] = decoder.readBoolean();
+                        }
                     }
                     break;
                 case (short) 5:

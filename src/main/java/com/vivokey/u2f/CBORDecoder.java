@@ -221,7 +221,7 @@ public class CBORDecoder extends CBORBase {
      * @param length    Number of bytes that should be read from the buffer
      * @return Number of bytes copied into the buffer
      */
-    private short readRawByteArray(byte[] outBuffer, short outOffset, short length) {
+    public short readRawByteArray(byte[] outBuffer, short outOffset, short length) {
         if (length > (short) outBuffer.length || (short) (length + getCurrentOffset()) > getBufferLength())
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
 

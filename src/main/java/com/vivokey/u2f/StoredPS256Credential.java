@@ -24,28 +24,37 @@ import javacard.security.Signature;
 
 public class StoredPS256Credential extends StoredCredential {
     Signature kpSignature;
+
     public StoredPS256Credential(AuthenticatorMakeCredential inputData) {
         // Generate a new RS256 credential
         kp = new KeyPair(KeyPair.ALG_RSA_CRT, KeyBuilder.LENGTH_RSA_2048);
         kp.genKeyPair();
-        // Generate a signature object
-        kpSignature = Signature.getInstance(Signature.ALG_RSA_SHA_256_PKCS1_PSS, false);
-        kpSignature.init(kp.getPrivate(), Signature.MODE_SIGN);
         user = inputData.getUser();
         rp = inputData.getRp();
     }
+
+    private void finaliseInit() {
+        // Generate a signature object
+        kpSignature = Signature.getInstance(Signature.ALG_RSA_SHA_256_PKCS1_PSS, false);
+        kpSignature.init(kp.getPrivate(), Signature.MODE_SIGN);
+        initialised = true;
+    }
+
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
+        if (!initialised) {
+            finaliseInit();
+        }
         incrementCounter();
         // Increment sig counter first
         return kpSignature.sign(inBuf, inOff, inLen, outBuf, outOff);
-        
-        
+
     }
 
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 4 bytes type and alg + 260 bytes mod inc header, 5 bytes exp inc header)
+        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 4 bytes type
+        // and alg + 260 bytes mod inc header, 5 bytes exp inc header)
         return (short) 304;
     }
 
@@ -92,5 +101,5 @@ public class StoredPS256Credential extends StoredCredential {
         len += enc.encodeByteString(exp, (short) 0, (short) 3);
         return len;
     }
-    
+
 }
