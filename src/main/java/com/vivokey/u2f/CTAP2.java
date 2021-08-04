@@ -335,27 +335,8 @@ public class CTAP2 {
             // Create the byte string to store the DER encoding.
             vars[1] = cborEncoder.startByteString(vars[4]);
 
-            // Build the DER format directly.
-            // Header
-            inBuf[vars[1]++] = (byte) 0x30;
-            // Data length, we know this. Two bytes less than the string.
-            inBuf[vars[1]++] = (byte) (vars[4] - 2);
-            // Type of r, int
-            inBuf[vars[1]++] = 0x02;
-            // Turns out if the first byte of r is big, we need to add a zero in front to
-            // ensure it's not seen as negative. So we're doing it anyway, because it's easier.
-            // Length of r
-            inBuf[vars[1]++] = 0x21;
-            // First byte of r is now 0x00
-            inBuf[vars[1]++] = 0x00;
-            vars[1] = Util.arrayCopy(scratch, (short) 0, inBuf, vars[1], (short) 32);
-            // Type of s, int
-            inBuf[vars[1]++] = 0x02;
-            // Same as r for s
-            inBuf[vars[1]++] = 0x21;
-            // First byte of s is now 0x00
-            inBuf[vars[1]++] = 0x00;
-            vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
+            // Build the DER format
+            createDerSig(scratch, (short) 0, inBuf, vars[1]);
             // Set the x509 cert now
             cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
             // Supposedly we need an array here
@@ -621,10 +602,13 @@ public class CTAP2 {
         // Tag 3, the signature of said data
         // Put the tag in
         cborEncoder.encodeUInt8((byte) 0x03);
+        // Turns out this is DER encoding, again
+
         // Create the ByteString to put it into
-        vars[3] = cborEncoder.startByteString((short) 64);
+        vars[3] = cborEncoder.startByteString((short) 72);
         // Sign the data
-        assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, inBuf, vars[3]);
+        assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch, (short) 69);
+        createDerSig(scratch, (short) 69, inBuf, vars[3]);
         // Tag 4, user details
         cborEncoder.encodeUInt8((byte) 0x04);
         // Start the PublicKeyCredentialUserEntity map
@@ -823,6 +807,32 @@ public class CTAP2 {
         inBuf[0] = 0x00;
         vars[0] = (short) (attestation.getCert(inBuf, (short) 1) + 1);
         sendLongChaining(apdu, vars[0]);
+    }
+
+    private void createDerSig(byte[] sigBuf, short sigOff, byte[] in, short inOff) {
+        short off = sigOff;
+        // Build the DER format directly.
+        // Header
+        in[off++] = (byte) 0x30;
+        // Data length, we know this. Two bytes less than the string.
+        in[off++] = (byte) 70;
+        // Type of r, int
+        in[off++] = 0x02;
+        // Turns out if the first byte of r is big, we need to add a zero in front to
+        // ensure it's not seen as negative. So we're doing it anyway, because it's
+        // easier.
+        // Length of r
+        in[off++] = 0x21;
+        // First byte of r is now 0x00
+        in[off++] = 0x00;
+        off = Util.arrayCopy(sigBuf, (short) 0, in, off, (short) 32);
+        // Type of s, int
+        in[off++] = 0x02;
+        // Same as r for s
+        in[off++] = 0x21;
+        // First byte of s is now 0x00
+        in[off++] = 0x00;
+        off = Util.arrayCopy(sigBuf, (short) 32, in, off, (short) 32);
     }
 
 }
