@@ -278,6 +278,7 @@ public class CTAP2 {
             addResident(apdu, residentCred);
             // Initialise the output buffer, for CBOR writing.
             // output buffer needs 0x00 as first byte as status code
+            ISOException.throwIt((short) 0x9100);
             inBuf[0] = 0x00;
             cborEncoder.init(inBuf, (short) 1, (short) 1199);
             // Create a map in the buffer
