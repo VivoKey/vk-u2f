@@ -24,6 +24,7 @@ public class AuthenticatorGetAssertion {
     public byte[] rpId;
     byte[] clientDataHash;
     boolean[] options;
+    PublicKeyCredentialDescriptor[] allow;
 
     public AuthenticatorGetAssertion(CBORDecoder decoder) {
 
@@ -63,6 +64,21 @@ public class AuthenticatorGetAssertion {
                     clientDataHash = new byte[vars[2]];
                     Util.arrayCopy(scratch, (short) 0, clientDataHash, (short) 0, vars[2]);
                     break;
+                case 0x03:
+                    // allowList
+                    // Read the array
+                    vars[2] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                    allow = new PublicKeyCredentialDescriptor[vars[2]];
+                    for(vars[0] = 0; vars[0] < vars[2]; vars[0]++) {
+                        // Read the id - it must be first
+                        decoder.skipEntry();
+                        // Read the actual id
+                        vars[1] = decoder.readByteString(scratch, (short) 0);
+                        allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[1]);
+                        // Skip the next two entries (pubkey type)
+                        decoder.skipEntry();
+                        decoder.skipEntry();
+                    }
                 case 0x05:
                     // Options - two important things here
                     vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
@@ -78,10 +94,6 @@ public class AuthenticatorGetAssertion {
                         }
                     }
                     break;
-                case 0x03:
-                    // allowList
-                    // We will need to assemble this
-                    // TODO: Given we're not fully specc'd yet, I haven't filled this in.
                 case 0x04:
                     // Extensions - we mostly ignore
                 case 0x06:
@@ -104,6 +116,10 @@ public class AuthenticatorGetAssertion {
     public short getHash(byte[] buf, short off) {
         Util.arrayCopy(clientDataHash, (short) 0, buf, off, (short) clientDataHash.length);
         return (short) clientDataHash.length;
+    }
+
+    public boolean hasAllow() {
+        return (allow != null && allow.length != 0);
     }
     
 }

@@ -122,13 +122,5 @@ public class CredentialArray {
     public StoredCredential getCred(short position) {
         return creds[position];
     }
-
-    public byte getFirstFree() {
-        for(counter = 0; counter < size; counter++) {
-            if(!slotStatus[counter]) {
-                return (byte) counter;
-            }
-        }
-        return (byte) 0xFF;
-    }
+    
 }

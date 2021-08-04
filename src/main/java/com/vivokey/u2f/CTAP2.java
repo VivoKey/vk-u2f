@@ -474,16 +474,44 @@ public class CTAP2 {
      * @return an array of StoredCredential objects, null if none matched.
      */
     private StoredCredential[] findCredentials(APDU apdu, AuthenticatorGetAssertion assertion) {
-        // TODO: Need to check for and enforce allow lists
-        StoredCredential[] list = new StoredCredential[discoverableCreds.getLength()];
+        StoredCredential[] list;
         StoredCredential temp;
-        vars[6] = 0;
-        for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
-            temp = discoverableCreds.getCred(vars[7]);
-            // Check for null first...
-            if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
-                // Then valid
-                list[vars[6]++] = temp;
+        if (assertion.hasAllow()) {
+            // Our list can be no bigger than the allowList
+            list = new StoredCredential[(short) assertion.allow.length];
+
+            vars[6] = 0;
+            for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
+                temp = discoverableCreds.getCred(vars[7]);
+                // Check if null or doesn't match rpId
+                if (temp == null || !temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
+                    continue;
+                }
+                for (vars[5] = 0; vars[5] < (short) assertion.allow.length; vars[5]++) {
+                    // Check the list
+                    // If lengths match, as well as the ids themselves
+                    if ((short) assertion.allow[vars[5]].id.length == (short) temp.id.length
+                            && (Util.arrayCompare(assertion.allow[vars[5]].id, (short) 0, temp.id, (short) 0,
+                                    (short) temp.id.length) == 0)) {
+                        // Add it to the list
+                        list[vars[6]++] = temp;
+                    }
+
+                }
+
+            }
+
+        } else {
+            // Old code path, works fine for me
+            list = new StoredCredential[discoverableCreds.getLength()];
+            vars[6] = 0;
+            for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
+                temp = discoverableCreds.getCred(vars[7]);
+                // Check for null first...
+                if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
+                    // Then valid
+                    list[vars[6]++] = temp;
+                }
             }
         }
 
