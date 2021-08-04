@@ -367,7 +367,6 @@ public class CTAP2 {
     }
 
     public void authGetAssertion(APDU apdu, short bufLen) {
-        byte[] buffer = apdu.getBuffer();
         // Decode the CBOR array for the assertion
         cborDecoder.init(inBuf, (short) 1, bufLen);
         assertion = new AuthenticatorGetAssertion(cborDecoder);
