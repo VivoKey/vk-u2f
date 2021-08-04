@@ -79,6 +79,7 @@ public class AuthenticatorGetAssertion {
                         decoder.skipEntry();
                         decoder.skipEntry();
                     }
+                    break;
                 case 0x05:
                     // Options - two important things here
                     vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
