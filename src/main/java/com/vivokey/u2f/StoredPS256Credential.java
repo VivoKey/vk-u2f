@@ -53,53 +53,39 @@ public class StoredPS256Credential extends StoredCredential {
 
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 4 bytes type
+        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 5 bytes type
         // and alg + 260 bytes mod inc header, 5 bytes exp inc header)
-        return (short) 304;
+        return (short) 305;
     }
 
     @Override
     public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
-        // Get the RSAPublicKey
-        byte[] mod;
-        byte[] exp;
-        try {
-            mod = JCSystem.makeTransientByteArray((short) 256, JCSystem.CLEAR_ON_RESET);
-        } catch (Exception e) {
-            mod = new byte[256];
-        }
-        try {
-            exp = JCSystem.makeTransientByteArray((short) 3, JCSystem.CLEAR_ON_RESET);
-        } catch (Exception e) {
-            exp = new byte[3];
-        }
 
-        ((RSAPublicKey) kp.getPublic()).getModulus(mod, (short) 0);
-        ((RSAPublicKey) kp.getPublic()).getExponent(exp, (short) 0);
-        short len = 34;
+        
         doAttestationCommon(buf, off);
         // Start the public key CBOR
         enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
-        len++;
         // kty - key type
-        len += enc.writeRawByte((byte) 0x01);
+        enc.writeRawByte((byte) 0x01);
         // RSA
-        len += enc.encodeUInt8((byte) 0x03);
+        enc.encodeUInt8((byte) 0x03);
         // alg
-        len += enc.writeRawByte((byte) 0x03);
-        // PS256 - -37 is 36 negative (minus 1 for neg on CBOR)
-        len += enc.encodeNegativeUInt8((byte) 36);
+        enc.writeRawByte((byte) 0x03);
+        // PS256 - -37 is 36 negative (minus 1 for neg on CBOR, 0x24 byte)
+        enc.encodeNegativeUInt8((byte) 0x24);
         // Modulus tag
-        len += enc.encodeNegativeUInt8((byte) 0x00);
+        enc.encodeNegativeUInt8((byte) 0x00);
         // Write the modulus
-        len += enc.encodeByteString(mod, (short) 0, (short) 256);
+        short start = enc.startByteString((short) 256);
+        ((RSAPublicKey) kp.getPublic()).getModulus(buf, start);
         // Exponent tag
-        len += enc.encodeNegativeUInt8((byte) 0x01);
+        enc.encodeNegativeUInt8((byte) 0x01);
         // Write the exponent
-        len += enc.encodeByteString(exp, (short) 0, (short) 3);
-        return len;
+        start = enc.startByteString((short) 3);
+        ((RSAPublicKey) kp.getPublic()).getExponent(buf, start);
+        return 305;
     }
 
 }

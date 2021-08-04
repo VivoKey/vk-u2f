@@ -75,30 +75,28 @@ public class StoredES256Credential extends StoredCredential {
         ((ECPublicKey) kp.getPublic()).getW(w, (short) 0);
         // Form the common params
         doAttestationCommon(buf, off);
-        short len = 34;
         enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
-        len++;
         // We had to kinda hack the map labels - this is kty
-        len += enc.writeRawByte((byte) 0x01);
-        // EC2 keytype
-        len += enc.encodeUInt8((byte) 0x02);
+        enc.writeRawByte((byte) 0x01);
+        // value: EC2 keytype
+        enc.encodeUInt8((byte) 0x02);
         // Alg - ES256
-        len += enc.writeRawByte((byte) 0x03);
-        len += enc.encodeNegativeUInt8((byte) 0x06);
+        enc.writeRawByte((byte) 0x03);
+        enc.encodeNegativeUInt8((byte) 0x06);
         // Curve type - P256
-        len += enc.encodeNegativeUInt8((byte) 0x00);
-        len += enc.encodeUInt8((byte) 0x01);
+        enc.encodeNegativeUInt8((byte) 0x00);
+        enc.encodeUInt8((byte) 0x01);
         // X coord
-        len += enc.encodeNegativeUInt8((byte) 0x01);
-        len += enc.encodeByteString(w, (short) 1, (short) 32);
+        enc.encodeNegativeUInt8((byte) 0x01);
+        enc.encodeByteString(w, (short) 1, (short) 32);
         // Y coord
-        len += enc.encodeNegativeUInt8((byte) 0x02);
-        len += enc.encodeByteString(w, (short) 33, (short) 32);
+        enc.encodeNegativeUInt8((byte) 0x02);
+        enc.encodeByteString(w, (short) 33, (short) 32);
         // That is all
         w = null;
         JCSystem.requestObjectDeletion();
-        return len;
+        return 109;
     }
 
 }
