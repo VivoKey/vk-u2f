@@ -56,7 +56,7 @@ public class StoredRS256Credential extends StoredCredential {
         doAttestationCommon(buf, off);
         // Start the public key CBOR
         enc.init(buf, (short) (off + 34), (short) 1000);
-        enc.startMap((short) 5);
+        enc.startMap((short) 4);
         // kty - key type
         enc.writeRawByte((byte) 0x01);
         // RSA
