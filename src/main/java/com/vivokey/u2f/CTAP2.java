@@ -323,10 +323,10 @@ public class CTAP2 {
             // This is because of big-r and big-s signatures in ECSDA needing an appending
             // 00.
             vars[4] = 0x46;
-            if ((scratch[0] & (byte) 0x80) == 0x80) {
+            if (scratch[0] > (byte) 0x7F) {
                 vars[4]++;
             }
-            if ((scratch[32] & (byte) 0x80) == 0x80) {
+            if (scratch[32] > (byte) 0x7F) {
                 vars[4]++;
             }
             // Create a map with 3 things
@@ -351,7 +351,7 @@ public class CTAP2 {
             inBuf[vars[1]++] = 0x02;
             // Turns out if the first byte of r is big, we need to add a zero in front to
             // ensure it's not seen as negative.
-            if ((scratch[0] & (byte) 0x80) == 0x80) {
+            if (scratch[0] > (byte) 0x7F) {
                 // Length of r
                 inBuf[vars[1]++] = 0x21;
                 // First byte of r is now 0x00
@@ -363,7 +363,7 @@ public class CTAP2 {
             // Type of s, int
             inBuf[vars[1]++] = 0x02;
             // Same as r for s
-            if ((scratch[32] & (byte) 0x80) == 0x80) {
+            if (scratch[32] > (byte) 0x7F) {
                 // Length of s
                 inBuf[vars[1]++] = 0x21;
                 // First byte of s is now 0x00
