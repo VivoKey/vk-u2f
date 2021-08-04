@@ -104,7 +104,6 @@ public class CTAP2 {
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
-    public static final byte FIDO2_VENDOR_CHECK_FREE = (byte) 0x45;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -180,9 +179,6 @@ public class CTAP2 {
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
-                break;
-            case FIDO2_VENDOR_CHECK_FREE:
-                checkResident(apdu);
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -492,12 +488,6 @@ public class CTAP2 {
         }
     }
 
-    private void checkResident(APDU apdu) {
-        byte[] buffer = apdu.getBuffer();
-        buffer[0] = 0x00;
-        buffer[1] = discoverableCreds.getFirstFree();
-        apdu.setOutgoingAndSend((short) 0, (short) 2);
-    }
 
     /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in
