@@ -617,7 +617,7 @@ public class CTAP2 {
         cborEncoder.encodeUInt8((byte) 0x02);
         // Tag 2, which is the Authenticator bindings data (turns out this is excluding
         // the clientDataHash)
-        cborEncoder.encodeByteString(scratch, (short) 0, (short) 69);
+        cborEncoder.encodeByteString(scratch, (short) 0, (short) 37);
         // Tag 3, the signature of said data
         // Put the tag in
         cborEncoder.encodeUInt8((byte) 0x03);
