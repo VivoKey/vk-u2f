@@ -306,29 +306,6 @@ public class CTAP2 {
         cborEncoder.init(inBuf, (short) 1, (short) 1199);
         // Create a map in the buffer
         vars[0] = cborEncoder.startMap((short) 3);
-        // Put the authdata identifier there
-        cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
-        // Allocate some space for the byte string
-        vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
-
-        // 
-        // Create the SHA256 hash of the RP ID
-        residentCred.rp.getRp(scratch, (short) 0);
-        vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
-        // Set flags - User presence, user verified, attestation present
-        inBuf[vars[0]++] = (byte) 0x45;
-        // Set the signature counter
-        vars[0] += residentCred.readCounter(inBuf, vars[0]);
-        // Read the credential details in
-
-        // Just note down where this starts for future ref
-        vars[7] = vars[0];
-        vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
-        // We're done so just redirect back to the encoder
-
-        // Attach the attestation statement format identifier
-        cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
-        cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
         // Generate and then attach the attestation format
         cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
         // Start to build into the cbor array manually, to avoid arrayCopy
@@ -408,6 +385,29 @@ public class CTAP2 {
         // Set the x509 now
         enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
         enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+
+        // Put the authdata identifier there
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
+        // Allocate some space for the byte string
+        vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
+
+        // 
+        // Create the SHA256 hash of the RP ID
+        residentCred.rp.getRp(scratch, (short) 0);
+        vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
+        // Set flags - User presence, user verified, attestation present
+        inBuf[vars[0]++] = (byte) 0x45;
+        // Set the signature counter
+        vars[0] += residentCred.readCounter(inBuf, vars[0]);
+        // Read the credential details in
+
+        // Just note down where this starts for future ref
+        vars[7] = vars[0];
+        vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
+
+        // Attach the attestation statement format identifier
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
         // We're actually done, send this out
         sendLongChaining(apdu, cborEncoder.getCurrentOffset());
     }
