@@ -276,8 +276,9 @@ public class CTAP2 {
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, residentCred);
 
+            // Generate the SHA256 hash
+            sha.doFinal(residentCred.rp.rpId.str, (short) 0, residentCred.rp.getRpLen(), scratch, (short) 0);
             // If it supports the getresponse command, use it
-            // TODO: Implement getresponse handling.
             if ((buffer[2] & 0x80) == 0x80) {
                 ISOException.throwIt((short) 0x9100);
             } else {
@@ -311,11 +312,9 @@ public class CTAP2 {
         cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
         // Allocate some space for the byte string
         vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
-
-        // Create the SHA256 hash of the RP ID
-        residentCred.rp.getRp(scratch, (short) 0);
-        // Write into the inBuf direct here
-        vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
+        // Copy the SHA256 hash from scratch
+        System.arraycopy(scratch, (short) 0, inBuf, vars[0], (short) 32);
+        vars[0] += 32;
         // Set flags - User presence, user verified, attestation present
         inBuf[vars[0]++] = (byte) 0x45;
         // Set the signature counter
