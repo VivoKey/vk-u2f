@@ -372,8 +372,10 @@ public class CTAP2 {
                 inBuf[vars[1]++] = 0x20;
             }
             vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
-            // Set the x509 now
+            // Set the x509 cert now
             cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
+            // Supposedly we need an array here
+            cborEncoder.startArray((short) 1);
             cborEncoder.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
             // We're actually done, send this out
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
