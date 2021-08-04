@@ -282,8 +282,12 @@ public class CTAP2 {
             // Create a map in the buffer
             vars[0] = cborEncoder.startMap((short) 3);
 
-            // Put the authdata identifier there
+            // Attestation stuff
             cborEncoder.writeRawByte((byte) 0x01);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
+
+            // Put the authdata identifier there
+            cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
             vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
 
@@ -300,14 +304,12 @@ public class CTAP2 {
             vars[7] = vars[0];
             vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
 
-            // Attach the attestation statement format identifier
-            cborEncoder.writeRawByte((byte) 0x02);
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
-            // Generate and then attach the attestation format
+
+            
+            // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
             // Start to build into the cbor array manually, to avoid arrayCopy
-            // Work out how long the byte array will be
-            
+
             // Generate the signature, can't do this directly unfortunately.
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
@@ -327,24 +329,18 @@ public class CTAP2 {
             if ((scratch[32] & (byte) 0x80) == 0x80) {
                 vars[4]++;
             }
-            // 10 bytes of CBOR, DER header (2 bytes) and the actual DER, plus x5c header (4
-            // bytes) and x5c itself (3 bytes plus the cert len)
-            vars[1] = (short) (10 + 2 + vars[4] + 4 + 3 + attestation.x509len);
-            vars[0] = cborEncoder.startByteString(vars[1]);
-            // Create a second encoder to encode the packed attestation statement
-            CBOREncoder enc2 = new CBOREncoder();
-            enc2.init(inBuf, vars[0], vars[1]);
             // Create a map with 3 things
-            vars[1] += enc2.startMap((short) 3);
+            
+            cborEncoder.startMap((short) 3);
             // Add the alg label
-            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
             // Add the actual algorithm - -7 is 6 as a negative
-            vars[1] += enc2.encodeNegativeUInt8((byte) 0x06);
+            cborEncoder.encodeNegativeUInt8((byte) 0x06);
             // Add the actual signature, we should generate this
-            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
 
             // Create the byte string to store the DER encoding.
-            vars[1] = enc2.startByteString(vars[4]);
+            vars[1] = cborEncoder.startByteString(vars[4]);
 
             // Build the DER format directly.
             // Header
@@ -376,10 +372,9 @@ public class CTAP2 {
                 inBuf[vars[1]++] = 0x20;
             }
             vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
-
             // Set the x509 now
-            enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
-            enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
+            cborEncoder.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
             // We're actually done, send this out
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
