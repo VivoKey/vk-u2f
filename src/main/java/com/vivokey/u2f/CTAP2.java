@@ -810,7 +810,7 @@ public class CTAP2 {
     }
 
     private void createDerSig(byte[] sigBuf, short sigOff, byte[] in, short inOff) {
-        short off = sigOff;
+        short off = inOff;
         // Build the DER format directly.
         // Header
         in[off++] = (byte) 0x30;
@@ -825,14 +825,14 @@ public class CTAP2 {
         in[off++] = 0x21;
         // First byte of r is now 0x00
         in[off++] = 0x00;
-        off = Util.arrayCopy(sigBuf, (short) 0, in, off, (short) 32);
+        off = Util.arrayCopy(sigBuf, sigOff, in, off, (short) 32);
         // Type of s, int
         in[off++] = 0x02;
         // Same as r for s
         in[off++] = 0x21;
         // First byte of s is now 0x00
         in[off++] = 0x00;
-        off = Util.arrayCopy(sigBuf, (short) 32, in, off, (short) 32);
+        off = Util.arrayCopy(sigBuf, (short) (sigOff + 32), in, off, (short) 32);
     }
 
 }
