@@ -301,7 +301,6 @@ public class CTAP2 {
             // Read the credential details in
 
             // Just note down where this starts for future ref
-            vars[7] = vars[0];
             vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
 
             // Generate and then attach the attestation
@@ -318,12 +317,12 @@ public class CTAP2 {
             // Add the actual signature, we should generate this
             cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
 
-            
+            residentCred.getAttestedData(scratch, (short) 0);
             // Generate the signature, can't do this directly unfortunately.
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
-            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
+            attestation.update(scratch, (short) 0, residentCred.getAttestedLen());
             // The client data hash is next, which we use to finish off the signature.
             vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
             // Create the byte string for the signature
