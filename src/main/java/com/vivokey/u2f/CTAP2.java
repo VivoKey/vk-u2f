@@ -331,10 +331,9 @@ public class CTAP2 {
             if((scratch[32] & (byte) 0x80) == 0x80) {
                 vars[4]++;
             }
-            // 10 bytes of CBOR, plus the DER stuff, plus x5c header (4 bytes) and x5c itself (3 bytes plus the cert len)
-            vars[1] = (short) (10 + vars[4] + 4 + 3 + attestation.x509len);
+            // 10 bytes of CBOR, DER header (2 bytes) and the actual DER, plus x5c header (4 bytes) and x5c itself (3 bytes plus the cert len)
+            vars[1] = (short) (10 + 2 + vars[4] + 4 + 3 + attestation.x509len);
             vars[0] = cborEncoder.startByteString(vars[1]);
-            APDU.waitExtension();
             // Create a second encoder to encode the packed attestation statement
             CBOREncoder enc2 = new CBOREncoder();
             enc2.init(inBuf, vars[0], vars[1]);
