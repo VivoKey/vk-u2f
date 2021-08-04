@@ -72,9 +72,11 @@ public abstract class StoredCredential {
      * Copies the counter (a 32-bit unsigned int) to the buffer specified, at offset bufOff.
      * @param buf the buffer to copy into
      * @param bufOff the offset to begin at
+     * @returns length
      */
-    public void readCounter(byte[] buf, short bufOff) {
+    public short readCounter(byte[] buf, short bufOff) {
         Util.arrayCopy(sigCounter, (short) 0, buf, bufOff, (short) 4);
+        return (short) 4;
     }
 
 
@@ -96,5 +98,26 @@ public abstract class StoredCredential {
     public abstract short getAttestedData(byte[] buf, short off);
 
 
+    /**
+     * Returns the length of the attestation data that will be fed later on.
+     * @returns length
+     */
+    public abstract short getAttestedLen();
 
+    /**
+     * Protected common attestation parameters
+     * @param buf
+     * @param off
+     * @return
+     */
+    protected void doAttestationCommon(byte[] buf, short off) {
+        // AAGUID
+        Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
+        // Length of the credential ID - 16 bytes
+        buf[(short) (off+16)] = 0x00;
+        buf[(short) (off+17)] = 0x10;
+        // Copy the credential ID
+        Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
+
+    }
 }
