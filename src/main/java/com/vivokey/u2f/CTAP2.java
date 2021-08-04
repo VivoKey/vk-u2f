@@ -313,7 +313,7 @@ public class CTAP2 {
         // Allocate some space for the byte string
         vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
         // Copy the SHA256 hash from scratch
-        System.arraycopy(scratch, (short) 0, inBuf, vars[0], (short) 32);
+        Util.arrayCopy(scratch, (short) 0, inBuf, vars[0], (short) 32);
         vars[0] += 32;
         // Set flags - User presence, user verified, attestation present
         inBuf[vars[0]++] = (byte) 0x45;
