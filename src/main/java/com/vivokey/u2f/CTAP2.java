@@ -251,7 +251,6 @@ public class CTAP2 {
     }
 
     public void authMakeCredential(APDU apdu, short bufLen) {
-        byte[] buffer = apdu.getBuffer();
         // Init the decoder
         cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
@@ -276,31 +275,7 @@ public class CTAP2 {
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, residentCred);
 
-            // If it supports the getresponse command, use it
-            if ((buffer[2] & 0x80) == 0x80) {
-                ISOException.throwIt((short) 0x9100);
-            } else {
-                // Otherwise, finish the credential
-                authFinishCredential(apdu);
-            }
-
-        }
-
-    }
-    /**
-     * Run a getResponse NFC message
-     * @param apdu
-     */
-    public void getResponse(APDU apdu) {
-        if(cred != null) {
-            authFinishCredential(apdu);
-        } else {
-            returnError(apdu, CTAP2_ERR_NO_OPERATION_PENDING);
-        }
-    }
-
-    private void authFinishCredential(APDU apdu) {
-        // Initialise the output buffer, for CBOR writing.
+ // Initialise the output buffer, for CBOR writing.
         // output buffer needs 0x00 as first byte as status code
         inBuf[0] = 0x00;
         cborEncoder.init(inBuf, (short) 1, (short) 1199);
@@ -391,7 +366,6 @@ public class CTAP2 {
         // Allocate some space for the byte string
         vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
 
-        // 
         // Create the SHA256 hash of the RP ID
         residentCred.rp.getRp(scratch, (short) 0);
         vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
@@ -410,7 +384,11 @@ public class CTAP2 {
         cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
         // We're actually done, send this out
         sendLongChaining(apdu, cborEncoder.getCurrentOffset());
+
+        }
+
     }
+
 
     public void authGetAssertion(APDU apdu, short bufLen) {
         // Decode the CBOR array for the assertion

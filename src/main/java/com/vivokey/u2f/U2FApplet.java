@@ -45,8 +45,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
 
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
-    private static final byte FIDO2_INS_NFCCTAP_GETRESPONSE = (byte) 0x11;
-    private static final byte FIDO2_INS_NFCCTAP_UNKNOWN = (byte) 0x12;
 
     private static final byte FIDO_INS_RESET_ATTEST = (byte) 0x55;
 
@@ -402,13 +400,6 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 break;
             case FIDO2_INS_NFCCTAP_MSG:
                 ctapImpl.handle(apdu);
-                break;
-            case FIDO2_INS_NFCCTAP_GETRESPONSE:
-                ctapImpl.getResponse(apdu);
-                break;
-            case FIDO2_INS_NFCCTAP_UNKNOWN:
-                // We need to respond to this as far as I can tell from my YubiKey
-                ISOException.throwIt(ISO7816.SW_NO_ERROR);
                 break;
             case FIDO_INS_RESET_ATTEST:
             default:
