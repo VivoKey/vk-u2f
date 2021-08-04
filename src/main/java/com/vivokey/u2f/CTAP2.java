@@ -45,6 +45,8 @@ public class CTAP2 {
     private short[] chainRam;
     private short[] outChainRam;
     private boolean[] isOutChaining;
+    private AuthenticatorMakeCredential cred;
+    private StoredCredential residentCred;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -141,6 +143,8 @@ public class CTAP2 {
 
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
+        residentCred = null;
+        cred = null;
         vars[3] = doApduIngestion(apdu);
         if (vars[3] == 0) {
             // If zero, we had no ISO error, but there might be a CTAP error to return.
@@ -251,14 +255,13 @@ public class CTAP2 {
     }
 
     public void authMakeCredential(APDU apdu, short bufLen) {
-        AuthenticatorMakeCredential cred = null;
+        byte[] buffer = apdu.getBuffer();
         // Init the decoder
         cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
         cred = new AuthenticatorMakeCredential(cborDecoder);
         if (cred.isResident()) {
             // Create the actual credential
-            StoredCredential residentCred = null;
             switch (cred.getAlgorithm()) {
                 case Signature.ALG_ECDSA_SHA_256:
                     residentCred = new StoredES256Credential(cred);
@@ -276,115 +279,142 @@ public class CTAP2 {
             APDU.waitExtension();
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, residentCred);
-            // Initialise the output buffer, for CBOR writing.
-            // output buffer needs 0x00 as first byte as status code
-            ISOException.throwIt((short) 0x9100);
-            inBuf[0] = 0x00;
-            cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            // Create a map in the buffer
-            vars[0] = cborEncoder.startMap((short) 3);
-            // Put the authdata identifier there
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
-            // Allocate some space for the byte string
-            vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
-            
-            // Create the SHA256 hash of the RP ID
-            residentCred.rp.getRp(scratch, (short) 0);
-            // Write into the inBuf direct here
-            vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
-            // Set flags - User presence, user verified, attestation present
-            inBuf[vars[0]++]= (byte) 0x45;
-            // Set the signature counter
-            vars[0] += residentCred.readCounter(inBuf, vars[0]);
-            // Read the credential details in
 
-            // Just note down where this starts for future ref
-            vars[7] = vars[0];
-            vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
-            // We're done so just redirect back to the encoder
-
-            // Attach the attestation statement format identifier
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
-            // Generate and then attach the attestation format
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
-            // Start to build into the cbor array manually, to avoid arrayCopy
-            // Work out how long the byte array will be 
-
-            // We do the signature here, so we know the length of everything.
-
-            // Generate the signature, can't do this directly unfortunately.
-            // We sign over the client data hash and the attested data.
-            // AuthenticatorData is first. We noted down where it begins and know how long it is.
-            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
-            // The client data hash is next, which we use to finish off the signature.
-            attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
-
-            // We need to know how big the DER encoding will be
-            // By default it's 0x46, 70 bytes, but can be up to 72 bytes.
-            // This is because of big-r and big-s signatures in ECSDA needing an appending 00.
-            vars[4] = 0x46;
-            if((scratch[0] & (byte) 0x80) == 0x80) {
-                vars[4]++;
-            }
-            if((scratch[32] & (byte) 0x80) == 0x80) {
-                vars[4]++;
-            }
-            // 10 bytes of CBOR, DER header (2 bytes) and the actual DER, plus x5c header (4 bytes) and x5c itself (3 bytes plus the cert len)
-            vars[1] = (short) (10 + 2 + vars[4] + 4 + 3 + attestation.x509len);
-            vars[0] = cborEncoder.startByteString(vars[1]);
-            // Create a second encoder to encode the packed attestation statement
-            CBOREncoder enc2 = new CBOREncoder();
-            enc2.init(inBuf, vars[0], vars[1]);
-            // Create a map with 3 things
-            vars[1] += enc2.startMap((short) 3);
-            // Add the alg label
-            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
-            // Add the actual algorithm - -7 is 6 as a negative
-            vars[1] += enc2.encodeNegativeUInt8((byte) 0x06);
-            // Add the actual signature, we should generate this
-            vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
-
-            // Create the byte string to store the DER encoding.
-            vars[1] = enc2.startByteString(vars[4]);
-
-            // Build the DER format directly.
-            // Header
-            inBuf[vars[1]++] = (byte) 0x30;
-            // Data length, we know this. Two bytes less than the string.
-            inBuf[vars[1]++] = (byte) (vars[4] - 2);
-            // Type of r, int
-            inBuf[vars[1]++] = 0x02;
-            // Turns out if the first byte of r is big, we need to add a zero in front to ensure it's not seen as negative.
-            if((scratch[0] & (byte) 0x80) == 0x80) {
-                // Length of r
-                inBuf[vars[1]++] = 0x21;
-                // First byte of r is now 0x00
-                inBuf[vars[1]++] = 0x00;
+            // If it supports the getresponse command, use it
+            // TODO: Implement getresponse handling.
+            if ((buffer[2] & 0x80) == 0x80) {
+                ISOException.throwIt((short) 0x9100);
             } else {
-                inBuf[vars[1]++] = 0x20;
+                // Otherwise, finish the credential
+                authFinishCredential(apdu);
             }
-            vars[1] = Util.arrayCopy(scratch, (short) 0, inBuf, vars[1], (short) 32);
-            // Type of s, int
-            inBuf[vars[1]++] = 0x02;
-            // Same as r for s
-            if((scratch[32] & (byte) 0x80) == 0x80) {
-                // Length of s
-                inBuf[vars[1]++] = 0x21;
-                // First byte of s is now 0x00
-                inBuf[vars[1]++] = 0x00;
-            } else {
-                inBuf[vars[1]++] = 0x20;
-            }
-            vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
 
-            // Set the x509 now
-            enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
-            enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
-            // We're actually done, send this out
-            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
         }
 
+    }
+    /**
+     * Run a getResponse NFC message
+     * @param apdu
+     */
+    public void getResponse(APDU apdu) {
+        if(cred != null) {
+            authFinishCredential(apdu);
+        } else {
+            returnError(apdu, CTAP2_ERR_NO_OPERATION_PENDING);
+        }
+    }
+
+    private void authFinishCredential(APDU apdu) {
+        // Initialise the output buffer, for CBOR writing.
+        // output buffer needs 0x00 as first byte as status code
+        inBuf[0] = 0x00;
+        cborEncoder.init(inBuf, (short) 1, (short) 1199);
+        // Create a map in the buffer
+        vars[0] = cborEncoder.startMap((short) 3);
+        // Put the authdata identifier there
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_AUTHDATA, (short) 0, (short) 8);
+        // Allocate some space for the byte string
+        vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
+
+        // Create the SHA256 hash of the RP ID
+        residentCred.rp.getRp(scratch, (short) 0);
+        // Write into the inBuf direct here
+        vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
+        // Set flags - User presence, user verified, attestation present
+        inBuf[vars[0]++] = (byte) 0x45;
+        // Set the signature counter
+        vars[0] += residentCred.readCounter(inBuf, vars[0]);
+        // Read the credential details in
+
+        // Just note down where this starts for future ref
+        vars[7] = vars[0];
+        vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
+        // We're done so just redirect back to the encoder
+
+        // Attach the attestation statement format identifier
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_FMT, (short) 0, (short) 3);
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
+        // Generate and then attach the attestation format
+        cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
+        // Start to build into the cbor array manually, to avoid arrayCopy
+        // Work out how long the byte array will be
+
+        // We do the signature here, so we know the length of everything.
+
+        // Generate the signature, can't do this directly unfortunately.
+        // We sign over the client data hash and the attested data.
+        // AuthenticatorData is first. We noted down where it begins and know how long
+        // it is.
+        attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
+        // The client data hash is next, which we use to finish off the signature.
+        attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
+
+        // We need to know how big the DER encoding will be
+        // By default it's 0x46, 70 bytes, but can be up to 72 bytes.
+        // This is because of big-r and big-s signatures in ECSDA needing an appending
+        // 00.
+        vars[4] = 0x46;
+        if ((scratch[0] & (byte) 0x80) == 0x80) {
+            vars[4]++;
+        }
+        if ((scratch[32] & (byte) 0x80) == 0x80) {
+            vars[4]++;
+        }
+        // 10 bytes of CBOR, DER header (2 bytes) and the actual DER, plus x5c header (4
+        // bytes) and x5c itself (3 bytes plus the cert len)
+        vars[1] = (short) (10 + 2 + vars[4] + 4 + 3 + attestation.x509len);
+        vars[0] = cborEncoder.startByteString(vars[1]);
+        // Create a second encoder to encode the packed attestation statement
+        CBOREncoder enc2 = new CBOREncoder();
+        enc2.init(inBuf, vars[0], vars[1]);
+        // Create a map with 3 things
+        vars[1] += enc2.startMap((short) 3);
+        // Add the alg label
+        vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
+        // Add the actual algorithm - -7 is 6 as a negative
+        vars[1] += enc2.encodeNegativeUInt8((byte) 0x06);
+        // Add the actual signature, we should generate this
+        vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
+
+        // Create the byte string to store the DER encoding.
+        vars[1] = enc2.startByteString(vars[4]);
+
+        // Build the DER format directly.
+        // Header
+        inBuf[vars[1]++] = (byte) 0x30;
+        // Data length, we know this. Two bytes less than the string.
+        inBuf[vars[1]++] = (byte) (vars[4] - 2);
+        // Type of r, int
+        inBuf[vars[1]++] = 0x02;
+        // Turns out if the first byte of r is big, we need to add a zero in front to
+        // ensure it's not seen as negative.
+        if ((scratch[0] & (byte) 0x80) == 0x80) {
+            // Length of r
+            inBuf[vars[1]++] = 0x21;
+            // First byte of r is now 0x00
+            inBuf[vars[1]++] = 0x00;
+        } else {
+            inBuf[vars[1]++] = 0x20;
+        }
+        vars[1] = Util.arrayCopy(scratch, (short) 0, inBuf, vars[1], (short) 32);
+        // Type of s, int
+        inBuf[vars[1]++] = 0x02;
+        // Same as r for s
+        if ((scratch[32] & (byte) 0x80) == 0x80) {
+            // Length of s
+            inBuf[vars[1]++] = 0x21;
+            // First byte of s is now 0x00
+            inBuf[vars[1]++] = 0x00;
+        } else {
+            inBuf[vars[1]++] = 0x20;
+        }
+        vars[1] = Util.arrayCopy(scratch, (short) 32, inBuf, vars[1], (short) 32);
+
+        // Set the x509 now
+        enc2.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
+        enc2.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+        // We're actually done, send this out
+        sendLongChaining(apdu, cborEncoder.getCurrentOffset());
     }
 
     public void authGetAssertion(APDU apdu, short bufLen) {

@@ -43,7 +43,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
     private static final byte FIDO_INS_SIGN = (byte) 0x02;
     private static final byte FIDO_INS_VERSION = (byte) 0x03;
     private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
+
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
+    private static final byte FIDO2_INS_NFCCTAP_GETRESPONSE = (byte) 0x11;
 
     private static final byte FIDO_INS_RESET_ATTEST = (byte) 0x55;
 
@@ -399,6 +401,9 @@ public class U2FApplet extends Applet implements ExtendedLength {
                 break;
             case FIDO2_INS_NFCCTAP_MSG:
                 ctapImpl.handle(apdu);
+                break;
+            case FIDO2_INS_NFCCTAP_GETRESPONSE:
+                ctapImpl.getResponse(apdu);
                 break;
             case FIDO_INS_RESET_ATTEST:
             default:
