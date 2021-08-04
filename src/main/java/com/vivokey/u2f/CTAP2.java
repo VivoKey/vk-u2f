@@ -310,8 +310,29 @@ public class CTAP2 {
             // Generate and then attach the attestation format
             cborEncoder.encodeTextString(Utf8Strings.UTF8_ATTSTMT, (short) 0, (short) 7);
             // Start to build into the cbor array manually, to avoid arrayCopy
-            // Work out how long the byte array will be
-            vars[1] = 0;
+            // Work out how long the byte array will be 
+
+            // We do the signature here, so we know the length of everything.
+
+            // Generate the signature, can't do this directly unfortunately.
+            // We sign over the client data hash and the attested data.
+            // AuthenticatorData is first. We noted down where it begins and know how long it is.
+            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
+            // The client data hash is next, which we use to finish off the signature.
+            attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
+
+            // We need to know how big the DER encoding will be
+            // By default it's 0x46, 70 bytes, but can be up to 72 bytes.
+            // This is because of big-r and big-s signatures in ECSDA needing an appending 00.
+            vars[4] = 0x46;
+            if((scratch[0] & (byte) 0x80) == 0x80) {
+                vars[4]++;
+            }
+            if((scratch[32] & (byte) 0x80) == 0x80) {
+                vars[4]++;
+            }
+            // 10 bytes of CBOR, plus the DER stuff, plus x5c header (4 bytes) and x5c itself (3 bytes plus the cert len)
+            vars[1] = (short) (10 + vars[4] + 4 + 3 + attestation.x509len);
             vars[0] = cborEncoder.startByteString(vars[1]);
             APDU.waitExtension();
             // Create a second encoder to encode the packed attestation statement
@@ -325,30 +346,15 @@ public class CTAP2 {
             vars[1] += enc2.encodeNegativeUInt8((byte) 0x06);
             // Add the actual signature, we should generate this
             vars[1] += enc2.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
-            // Generate the signature, can't do this directly unfortunately.
-            // We sign over the client data hash and the attested data.
-            // AuthenticatorData is first. We noted down where it begins and know how long it is.
-            attestation.update(inBuf, vars[7], residentCred.getAttestedLen());
-            // The client data hash is next, which we use to finish off the signature.
-            attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
-            // Start the byte string
-            // We need to know how big the DER encoding will be
-            // By default it's 0x46, 70 bytes, but can be up to 72 bytes.
-            vars[0] = 0x46;
-            if((scratch[0] & (byte) 0x80) == 0x80) {
-                vars[0]++;
-            }
-            if((scratch[32] & (byte) 0x80) == 0x80) {
-                vars[0]++;
-            }
-            // Create the byte string to store it
-            vars[1] = enc2.startByteString(vars[0]);
+
+            // Create the byte string to store the DER encoding.
+            vars[1] = enc2.startByteString(vars[4]);
 
             // Build the DER format directly.
             // Header
             inBuf[vars[1]++] = (byte) 0x30;
             // Data length, we know this. Two bytes less than the string.
-            inBuf[vars[1]++] = (byte) (vars[0] - 2);
+            inBuf[vars[1]++] = (byte) (vars[4] - 2);
             // Type of r, int
             inBuf[vars[1]++] = 0x02;
             // Turns out if the first byte of r is big, we need to add a zero in front to ensure it's not seen as negative.
