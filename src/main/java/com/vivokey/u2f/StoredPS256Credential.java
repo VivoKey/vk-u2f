@@ -16,7 +16,6 @@
 */
 package com.vivokey.u2f;
 
-import javacard.framework.JCSystem;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.RSAPublicKey;
