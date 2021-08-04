@@ -390,6 +390,7 @@ public class CTAP2 {
     }
 
     public void authGetAssertion(APDU apdu, short bufLen) {
+        nextAssertion[0] = (short) 0;
         // Decode the CBOR array for the assertion
         cborDecoder.init(inBuf, (short) 1, bufLen);
         assertion = new AuthenticatorGetAssertion(cborDecoder);
@@ -440,7 +441,7 @@ public class CTAP2 {
             scratch[32] = 0x05;
             assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
             // Copy the hash in
-            vars[2] = assertion.getHash(scratch, (short) 37);
+            assertion.getHash(scratch, (short) 37);
             // Create the output
 
             // Status flags first

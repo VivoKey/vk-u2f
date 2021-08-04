@@ -26,7 +26,7 @@ public class Utf8Strings {
     public static final byte[] UTF8_DISPLAYNAME = {0x64, 0x69, 0x73, 0x70, 0x6c, 0x61, 0x79, 0x4e, 0x61, 0x6d, 0x65};
     // Representation of "alg" in UTF8
     public static final byte[] UTF8_ALG = {0x61, 0x6c, 0x67};
-    public static final byte[] UTF8_UV = {0x75, 0x76};
+    public static final byte[] UTF8_UV = {'u', 'v'};
     public static final byte[] UTF8_RK = {0x72, 0x6b};
     public static final byte[] UTF8_TYPE = {'t', 'y', 'p', 'e'};
     public static final byte[] UTF8_FMT = {'f', 'm', 't'};

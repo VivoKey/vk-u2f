@@ -68,13 +68,13 @@ public class AuthenticatorGetAssertion {
                     vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
                         // Read the text string
-                        vars[4] = decoder.readByteString(scratch, (short) 0);
-                        if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == 0) {
-                            // Is the UV param
-                            options[1] = decoder.readBoolean();
-                        } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
+                        decoder.readByteString(scratch, (short) 0);
+                        if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
                             // Is the UP param
                             options[0] = decoder.readBoolean();
+                        } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == 0) {
+                            // Is the UV param
+                            options[1] = decoder.readBoolean();
                         }
                     }
                     break;
