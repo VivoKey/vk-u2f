@@ -109,11 +109,11 @@ public class CBOREncoder extends CBORBase{
     }
 
     public short encodeNegativeUInt8(byte value) {
-        return encodeValue(TYPE_NEGATIVE_INTEGER, (short) (value & 0x00FF));
+        return encodeValue((byte) 0x20, (short) (value & 0x00FF));
     }
 
     public short encodeNegativeUInt16(short value) {
-        return encodeValue(TYPE_NEGATIVE_INTEGER, value);
+        return encodeValue((byte) 0x20, value);
     }
 
     /**
