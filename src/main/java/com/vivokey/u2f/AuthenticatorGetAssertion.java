@@ -70,6 +70,11 @@ public class AuthenticatorGetAssertion {
                     vars[2] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
                     allow = new PublicKeyCredentialDescriptor[vars[2]];
                     for(vars[0] = 0; vars[0] < vars[2]; vars[0]++) {
+                        // Read the map. It has 2 things in it.
+                        vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        if(vars[1] != 2) {
+                            ISOException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                        }
                         // Read the id - it must be first
                         decoder.skipEntry();
                         // Read the actual id
