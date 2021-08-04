@@ -17,7 +17,6 @@
 package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
-import javacard.framework.Util;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyBuilder;
@@ -45,23 +44,27 @@ public class StoredES256Credential extends StoredCredential {
         
     }
     @Override
+    public short getAttestedLen() {
+        // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes keytype and curve type, 34 bytes x, 34 bytes y, 75 total)
+        return (short) 109;
+    }
 
+    @Override
     public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the ECPublicKey
-        byte[] w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
+        byte[] w;
+        try {
+            w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            w = new byte[65];
+        }
+        
         ((ECPublicKey) kp.getPublic()).getW(w, (short) 0);
-        // Form the pubkey and co
-        // AAGUID
-        Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
-        // Length of the credential ID - 16 bytes
-        short len = 16;
-        buf[(short) (off+len++)] = 0x00;
-        buf[(short) (off+len++)] = 0x10;
-        // Copy the credential ID
-        Util.arrayCopy(id, (short) 0, buf, (short) (off+len), (short) 16);
-        len += 16;
-        enc.init(buf, (short) (off + len), (short) 1000);
+        // Form the common params
+        doAttestationCommon(buf, off);
+        short len = 34;
+        enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
         len++;
         // We had to kinda hack the map labels - this is kty
@@ -72,13 +75,13 @@ public class StoredES256Credential extends StoredCredential {
         len += enc.writeRawByte((byte) 0x03);
         len += enc.encodeNegativeUInt8((byte) 0x06);
         // Curve type - P256
-        len += enc.writeRawByte((byte) -1);
+        len += enc.encodeNegativeUInt8((byte) 0x00);
         len += enc.encodeUInt8((byte) 0x01);
         // X coord
-        len += enc.writeRawByte((byte) -2);
+        len += enc.encodeNegativeUInt8((byte) 0x01);
         len += enc.encodeByteString(w, (short) 1, (short) 32);
         // Y coord
-        len += enc.writeRawByte((byte) -3);
+        len += enc.encodeNegativeUInt8((byte) 0x02);
         len += enc.encodeByteString(w, (short) 33, (short) 32);
         // That is all
         w = null;

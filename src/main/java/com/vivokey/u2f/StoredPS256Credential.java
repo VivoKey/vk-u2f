@@ -17,7 +17,6 @@
 package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
-import javacard.framework.Util;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.RSAPublicKey;
@@ -43,25 +42,36 @@ public class StoredPS256Credential extends StoredCredential {
         
         
     }
+
+    @Override
+    public short getAttestedLen() {
+        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 4 bytes type and alg + 260 bytes mod inc header, 5 bytes exp inc header)
+        return (short) 304;
+    }
+
     @Override
     public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the RSAPublicKey
-        byte[] mod = JCSystem.makeTransientByteArray((short) 256, JCSystem.CLEAR_ON_RESET);
-        byte[] exp = JCSystem.makeTransientByteArray((short) 3, JCSystem.CLEAR_ON_RESET);
+        byte[] mod;
+        byte[] exp;
+        try {
+            mod = JCSystem.makeTransientByteArray((short) 256, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            mod = new byte[256];
+        }
+        try {
+            exp = JCSystem.makeTransientByteArray((short) 3, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            exp = new byte[3];
+        }
+
         ((RSAPublicKey) kp.getPublic()).getModulus(mod, (short) 0);
         ((RSAPublicKey) kp.getPublic()).getExponent(exp, (short) 0);
-        // AAGUID
-        Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
-        short len = 16;
-        // Length of the credential ID - 16 bytes
-        buf[(short) (off+len++)] = 0x00;
-        buf[(short) (off+len++)] = 0x10;
-        // Copy the credential ID
-        Util.arrayCopy(id, (short) 0, buf, (short) (off+len), (short) 16);
-        len += 16;
+        short len = 34;
+        doAttestationCommon(buf, off);
         // Start the public key CBOR
-        enc.init(buf, (short) (off + len), (short) 1000);
+        enc.init(buf, (short) (off + 34), (short) 1000);
         enc.startMap((short) 5);
         len++;
         // kty - key type
@@ -73,11 +83,11 @@ public class StoredPS256Credential extends StoredCredential {
         // PS256 - -37 is 36 negative (minus 1 for neg on CBOR)
         len += enc.encodeNegativeUInt8((byte) 36);
         // Modulus tag
-        len += enc.writeRawByte((byte) -1);
+        len += enc.encodeNegativeUInt8((byte) 0x00);
         // Write the modulus
         len += enc.encodeByteString(mod, (short) 0, (short) 256);
         // Exponent tag
-        len += enc.writeRawByte((byte) -2);
+        len += enc.encodeNegativeUInt8((byte) 0x01);
         // Write the exponent
         len += enc.encodeByteString(exp, (short) 0, (short) 3);
         return len;

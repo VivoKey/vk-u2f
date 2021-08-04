@@ -23,7 +23,7 @@ import javacard.framework.Util;
 import javacard.security.CryptoException;
 
 public class AuthenticatorMakeCredential {
-    private byte[] dataHash;
+    public byte[] dataHash;
     private PublicKeyCredentialRpEntity rp;
     private PublicKeyCredentialUserEntity user;
     private PublicKeyCredentialParams params;
