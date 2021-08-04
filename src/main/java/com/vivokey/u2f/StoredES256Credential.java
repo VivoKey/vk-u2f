@@ -34,21 +34,14 @@ public class StoredES256Credential extends StoredCredential {
         kp.genKeyPair();
         user = inputData.getUser();
         rp = inputData.getRp();
-    }
-
-    private void finaliseInit() {
-        // Called to finalise the signature - offload time-consuming tasks
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
-        initialised = true;
     }
+
 
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         // Performs the signature as per ES256
-        if (!initialised) {
-            finaliseInit();
-        }
         incrementCounter();
         return sig.sign(inBuf, inOff, inLen, outBuf, outOff);
 

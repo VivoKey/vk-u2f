@@ -30,20 +30,14 @@ public class StoredPS256Credential extends StoredCredential {
         kp.genKeyPair();
         user = inputData.getUser();
         rp = inputData.getRp();
-    }
-
-    private void finaliseInit() {
-        // Generate a signature object
         kpSignature = Signature.getInstance(Signature.ALG_RSA_SHA_256_PKCS1_PSS, false);
         kpSignature.init(kp.getPrivate(), Signature.MODE_SIGN);
-        initialised = true;
     }
+
+
 
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
-        if (!initialised) {
-            finaliseInit();
-        }
         incrementCounter();
         // Increment sig counter first
         return kpSignature.sign(inBuf, inOff, inLen, outBuf, outOff);

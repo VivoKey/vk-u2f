@@ -30,19 +30,13 @@ public class StoredRS256Credential extends StoredCredential {
         kp.genKeyPair();
         user = inputData.getUser();
         rp = inputData.getRp();
-    }
-
-    private void finaliseInit() {
-        // Generate a signature object
         kpSignature = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
         kpSignature.init(kp.getPrivate(), Cipher.MODE_ENCRYPT);
     }
 
+
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
-        if (!initialised) {
-            finaliseInit();
-        }
         incrementCounter();
         // Increment sig counter first
         return kpSignature.doFinal(inBuf, inOff, inLen, outBuf, outOff);

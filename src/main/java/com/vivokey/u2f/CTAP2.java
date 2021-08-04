@@ -121,9 +121,9 @@ public class CTAP2 {
             inBuf = new byte[1210];
         }
         try {
-            scratch = JCSystem.makeTransientByteArray((short) 768, JCSystem.CLEAR_ON_DESELECT);
+            scratch = JCSystem.makeTransientByteArray((short) 200, JCSystem.CLEAR_ON_DESELECT);
         } catch (Exception e) {
-            scratch = new byte[768];
+            scratch = new byte[200];
         }
         vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
         // Create the CBOR decoder
@@ -317,10 +317,10 @@ public class CTAP2 {
             attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
 
             // We need to know how big the DER encoding will be
-            // By default it's 0x48, 72 bytes, but can be up to 72 bytes.
+            // By default it's 0x48, 70 bytes, but can be up to 72 bytes.
             // This is because of big-r and big-s signatures in ECSDA needing an appending
             // 00.
-            vars[4] = 0x48;
+            vars[4] = getDerLen(scratch, (short) 0);
 
             // Create a map with 3 things
 
@@ -604,10 +604,11 @@ public class CTAP2 {
         cborEncoder.encodeUInt8((byte) 0x03);
         // Turns out this is DER encoding, again
 
-        // Create the ByteString to put it into
-        vars[3] = cborEncoder.startByteString((short) 72);
         // Sign the data
         assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch, (short) 69);
+        // Create the ByteString to put it into
+        vars[3] = cborEncoder.startByteString(getDerLen(scratch, (short) 69));
+        // Actually form the DerSig
         createDerSig(scratch, (short) 69, inBuf, vars[3]);
         // Tag 4, user details
         cborEncoder.encodeUInt8((byte) 0x04);
@@ -814,25 +815,45 @@ public class CTAP2 {
         // Build the DER format directly.
         // Header
         in[off++] = (byte) 0x30;
-        // Data length, we know this. Two bytes less than the string.
+        // Data length, we know this.
         in[off++] = (byte) 70;
         // Type of r, int
         in[off++] = 0x02;
         // Turns out if the first byte of r is big, we need to add a zero in front to
-        // ensure it's not seen as negative. So we're doing it anyway, because it's
-        // easier.
-        // Length of r
-        in[off++] = 0x21;
-        // First byte of r is now 0x00
-        in[off++] = 0x00;
+        // ensure it's not seen as negative.
+        if ((byte) (sigBuf[sigOff] & 0x80) == (byte) 0x80) {
+            // Length of r
+            in[off++] = 0x21;
+            // First byte of r is now 0x00
+            in[off++] = 0x00;
+        } else {
+            in[off++] = 0x20;
+        }
+
         off = Util.arrayCopy(sigBuf, sigOff, in, off, (short) 32);
         // Type of s, int
         in[off++] = 0x02;
         // Same as r for s
-        in[off++] = 0x21;
-        // First byte of s is now 0x00
-        in[off++] = 0x00;
+        if((byte)(sigBuf[(short)(sigOff+32)] & 0x80) == (byte)0x80) {
+            in[off++] = 0x21;
+            // First byte of s is now 0x00
+            in[off++] = 0x00;
+        } else {
+            in[off++] = 0x20;
+        }
+        
         off = Util.arrayCopy(sigBuf, (short) (sigOff + 32), in, off, (short) 32);
+    }
+    
+    public short getDerLen(byte[] sigBuf, short sigOff) {
+        short len = 70;
+        if((byte)(sigBuf[sigOff] & 0x80) == (byte)0x80) {
+            len++;
+        }
+        if((byte)(sigBuf[(short)(sigOff+32)] & 0x80) == (byte) 0x80) {
+            len++;
+        }
+        return len;
     }
 
 }
