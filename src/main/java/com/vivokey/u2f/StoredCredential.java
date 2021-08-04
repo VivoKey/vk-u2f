@@ -46,6 +46,10 @@ public abstract class StoredCredential {
         }
         return Util.arrayCompare(id, (short) 0, inBuf, inOff, inLen) == 0;
     }
+
+    public boolean[] getPresentUser() {
+        return user.dataPresent;
+    }
     /**
      * Increment the counter.
      * NOTE: Atomic.
