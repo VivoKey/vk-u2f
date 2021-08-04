@@ -763,19 +763,19 @@ public class CTAP2 {
      * @param apdu
      */
     public void getData(APDU apdu) {
-        if (outChainRam[0] >= 256) {
+        if (outChainRam[0] > 256) {
             // More to go after this
             outChainRam[0] -= 256;
             byte[] buf = apdu.getBuffer();
             Util.arrayCopyNonAtomic(inBuf, outChainRam[1], buf, (short) 0, (short) 256);
             apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] += 256;
-            if (outChainRam[0] >= 256) {
+            if (outChainRam[0] > 255) {
                 // At least 256 to go, so 256 more
                 ISOException.throwIt((short) 0x6100);
             } else {
                 // Less than, so say how many bytes are left.
-                ISOException.throwIt((short) (0x6100 | (byte) outChainRam[0]));
+                ISOException.throwIt(Util.makeShort((byte) 0x61, (byte) outChainRam[0]));
             }
         } else {
             // This is the last message
@@ -808,7 +808,7 @@ public class CTAP2 {
             apdu.setOutgoingAndSend((short) 0, (short) 256);
             outChainRam[1] = 256;
             // Throw the 61 xx
-            if (outChainRam[0] > 256) {
+            if (outChainRam[0] > 255) {
                 // More than 255 (at least 256) to go, so 256 more
                 ISOException.throwIt((short) 0x6100);
             } else {
