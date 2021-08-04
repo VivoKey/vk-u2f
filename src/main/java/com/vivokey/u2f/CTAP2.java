@@ -121,9 +121,9 @@ public class CTAP2 {
             inBuf = new byte[1210];
         }
         try {
-            scratch = JCSystem.makeTransientByteArray((short) 200, JCSystem.CLEAR_ON_DESELECT);
+            scratch = JCSystem.makeTransientByteArray((short) 512, JCSystem.CLEAR_ON_DESELECT);
         } catch (Exception e) {
-            scratch = new byte[200];
+            scratch = new byte[512];
         }
         vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_DESELECT);
         // Create the CBOR decoder
