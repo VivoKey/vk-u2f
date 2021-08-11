@@ -38,8 +38,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.sun</groupId>
-      <artifactId>javacard</artifactId>
+      <groupId>oracle.javacard</groupId>
+      <artifactId>oracle.javacard</artifactId>
       <version>3.0.4</version>
       <scope>system</scope>
       <systemPath>${project.basedir}/sdks/jc304_kit/lib/api_classic.jar</systemPath>
