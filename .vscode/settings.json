@@ -3,6 +3,7 @@
         "lib/**/*.jar",
         "sdks\\jc304_kit\\lib\\api_classic.jar",
         "sdks\\jc304_kit\\lib\\api_classic_annotations.jar"
-    ]
+    ],
+    "java.configuration.updateBuildConfiguration": "automatic"
 	
 }

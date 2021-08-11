@@ -13,12 +13,13 @@ pipeline {
 		}
         stage ('Build') {
             steps {
-				sh 'ant clean'
-				sh 'ant dist'
+				sh 'maven clean'
+				sh 'maven package'
             }
             post {
                 always {
 					archiveArtifacts artifacts: 'target/*.cap', fingerprint: true
+                    junit 'target/surefire-reports/*.xml'
                 }
             }
         }
