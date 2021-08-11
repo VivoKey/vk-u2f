@@ -17,9 +17,6 @@
 package com.vivokey.u2f;
 
 public class Utf8Strings {
-    private Utf8Strings() throws Exception {
-        throw new Exception();
-    }
     public static final byte[] UTF8_UP = {'u', 'p'};
     // Representation of "id" in UTF8
     public static final byte[] UTF8_ID = {0x69, 0x64};

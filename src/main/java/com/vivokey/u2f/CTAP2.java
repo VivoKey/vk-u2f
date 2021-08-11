@@ -118,7 +118,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             (byte) 0x44, (byte) 0x92, (byte) 0x92, (byte) 0x00, (byte) 0x78, (byte) 0x13, (byte) 0x7d, (byte) 0xcc,
             (byte) 0xc1, (byte) 0x36 };
 
-    public CTAP2() {
+    private CTAP2() {
 
         // 1200 bytes of a transient buffer for read-in and out
         try {
@@ -838,9 +838,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
         offset += (short) (bArray[offset] + 1); // privileges
         final CTAP2 applet = new CTAP2();
         try {
-            applet.register();
-        } catch (Exception e) {
             applet.register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+        } catch (Exception e) {
+            applet.register();
         }
 
     }

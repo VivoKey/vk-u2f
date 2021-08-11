@@ -23,10 +23,6 @@ import javacard.security.ECKey;
 
 public class Secp256r1 {
 
-    private Secp256r1() throws Exception {
-        throw new Exception();
-    }
-
     // Nice SECp256r1 constants, only available during NIST opening hours
 
     protected static final byte SECP256R1_FP[] = {
