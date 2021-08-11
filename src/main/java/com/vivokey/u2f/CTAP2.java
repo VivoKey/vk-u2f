@@ -296,7 +296,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
             cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
             vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
-
+            // Stash where it begins
+            vars[7] = vars[0];
             // Create the SHA256 hash of the RP ID
             residentCred.rp.getRp(scratch, (short) 0);
             vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
@@ -305,7 +306,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Set the signature counter
             vars[0] += residentCred.readCounter(inBuf, vars[0]);
             // Read the credential details in
-
             // Just note down where this starts for future ref
             vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
 
@@ -323,12 +323,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Add the actual signature, we should generate this
             cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
 
-            residentCred.getAttestedData(scratch, (short) 0);
             // Generate the signature, can't do this directly unfortunately.
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
-            attestation.update(scratch, (short) 0, residentCred.getAttestedLen());
+            attestation.update(inBuf, vars[7], (short) (residentCred.getAttestedLen() + 37));
             // The client data hash is next, which we use to finish off the signature.
             vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
             // Create the byte string for the signature
