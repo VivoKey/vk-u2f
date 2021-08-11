@@ -18,6 +18,9 @@
 package com.vivokey.u2f;
 
 public class ICUtil {
+    private ICUtil() throws Exception {
+        throw new Exception();
+    }
 
     /**
      * Get the sign bit of a given short (returns 0 or 1)

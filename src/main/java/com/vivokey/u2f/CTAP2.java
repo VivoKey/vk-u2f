@@ -18,14 +18,16 @@
 package com.vivokey.u2f;
 
 import javacard.framework.APDU;
+import javacard.framework.Applet;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
+import javacardx.apdu.ExtendedLength;
 
-public class CTAP2 {
+public class CTAP2 extends Applet implements ExtendedLength {
 
     private CBORDecoder cborDecoder;
     private CBOREncoder cborEncoder;
@@ -47,6 +49,10 @@ public class CTAP2 {
     private boolean[] isOutChaining;
     private AuthenticatorMakeCredential cred;
     private StoredCredential residentCred;
+
+
+    private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
+    private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
 
     public static final byte CTAP1_ERR_SUCCESS = (byte) 0x00;
     public static final byte CTAP1_ERR_INVALID_COMMAND = (byte) 0x01;
@@ -116,7 +122,7 @@ public class CTAP2 {
 
         // 1200 bytes of a transient buffer for read-in and out
         try {
-            inBuf = JCSystem.makeTransientByteArray((short) 1200, JCSystem.CLEAR_ON_DESELECT);
+            inBuf = JCSystem.makeTransientByteArray((short) 1210, JCSystem.CLEAR_ON_DESELECT);
         } catch (Exception e) {
             inBuf = new byte[1210];
         }
@@ -521,11 +527,9 @@ public class CTAP2 {
             // 0x01, versions
             cborEncoder.encodeUInt8((byte) 0x01);
             // Value is an array of strings
-            cborEncoder.startArray((short) 2);
+            cborEncoder.startArray((short) 1);
             // Type 1, FIDO2
             cborEncoder.encodeTextString(Utf8Strings.UTF8_FIDO2, (short) 0, (short) 8);
-            // Type 2, U2F
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_U2F, (short) 0, (short) 6);
             // AAGUID, 0x03
             cborEncoder.encodeUInt8((byte) 0x03);
             cborEncoder.encodeByteString(aaguid, (short) 0, (short) 16);
@@ -796,6 +800,49 @@ public class CTAP2 {
         inBuf[0] = 0x00;
         vars[0] = (short) (attestation.getCert(inBuf, (short) 1) + 1);
         sendLongChaining(apdu, vars[0]);
+    }
+
+    @Override
+    public void process(APDU apdu) throws ISOException {
+        byte[] buffer = apdu.getBuffer();
+        if (selectingApplet()) {
+            Util.arrayCopyNonAtomic(Utf8Strings.UTF8_FIDO2, (short) 0, buffer, (short) 0,
+                    (short) Utf8Strings.UTF8_FIDO2.length);
+            apdu.setOutgoingAndSend((short) 0, (short) Utf8Strings.UTF8_FIDO2.length);
+            return;
+        }
+
+        if(!apdu.isCommandChainingCLA() &&  apdu.isISOInterindustryCLA()) {
+            ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
+        }
+        switch(buffer[ISO7816.OFFSET_INS]) {
+            case ISO_INS_GET_DATA:
+                if (isChaining()) {
+                    getData(apdu);
+                } else {
+                    ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+                }
+                break;
+            case FIDO2_INS_NFCCTAP_MSG:
+                handle(apdu);
+                break;
+            default:
+                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+        }
+        
+    }
+
+    public static void install(byte[] bArray, short bOffset, byte bLength) throws ISOException {
+        short offset = bOffset;
+        offset += (short) (bArray[offset] + 1); // instance
+        offset += (short) (bArray[offset] + 1); // privileges
+        final CTAP2 applet = new CTAP2();
+        try {
+            applet.register();
+        } catch (Exception e) {
+            applet.register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+        }
+
     }
 
     
