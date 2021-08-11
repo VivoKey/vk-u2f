@@ -4,13 +4,13 @@
     <get src="https://github.com/martinpaljak/ant-javacard/releases/download/v20.03.25/ant-javacard.jar" skipexisting="true" dest="."/>
     <taskdef name="javacard" classname="pro.javacard.ant.JavaCard" classpath="ant-javacard.jar"/>
     <javacard jckit="sdks/jc310b43_kit">
-      <cap targetsdk="sdks/jc304_kit" output="target/U2FApplet.cap" sources="src" aid="a0:00:00:06:47:2F:00:01" version="1.1">
-        <applet class="com.vivokey.u2f.U2FApplet" aid="a0:00:00:06:47:2F:00:01:01"/>
+      <cap targetsdk="sdks/jc304_kit" output="target/CTAP2.cap" sources="src" aid="a0:00:00:06:47:2F:00:01" version="1.1">
+        <applet class="com.vivokey.u2f.CTAP2" aid="a0:00:00:06:47:2F:00:01:01"/>
       </cap>
     </javacard>
   </target>
   <target name="clean" description="clean up">
     <!-- Delete the built applet -->
-    <delete dir="target/U2FApplet.cap"/>
+    <delete dir="target/CTAP2.cap"/>
   </target>
 </project>
