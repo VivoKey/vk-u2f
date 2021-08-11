@@ -2,13 +2,6 @@ package com.vivokey.u2f;
 
 import static org.junit.Assert.assertTrue;
 
-import com.licel.jcardsim.smartcardio.CardSimulator;
-import com.licel.jcardsim.utils.AIDUtil;
-
-import org.junit.Test;
-
-import javacard.framework.AID;
-import javacard.framework.SystemException;
 
 /**
  * Unit testing via jCardSim

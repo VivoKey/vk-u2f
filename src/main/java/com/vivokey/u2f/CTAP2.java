@@ -23,7 +23,10 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.AESKey;
+import javacard.security.KeyBuilder;
 import javacard.security.MessageDigest;
+import javacard.security.RandomData;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
 
@@ -48,7 +51,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
     private short[] outChainRam;
     private boolean[] isOutChaining;
     private AuthenticatorMakeCredential cred;
-    private StoredCredential residentCred;
+
+    private StoredCredential tempCred;
+
 
     private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
@@ -143,11 +148,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
         chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         outChainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         isOutChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
+
     }
 
     public void handle(APDU apdu) {
         byte[] buffer = apdu.getBuffer();
-        residentCred = null;
+        tempCred = null;
         cred = null;
         vars[3] = doApduIngestion(apdu);
         if (vars[3] == 0) {
@@ -260,30 +266,31 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
         cred = new AuthenticatorMakeCredential(cborDecoder);
+        // Create the actual credential
+        switch (cred.getAlgorithm()) {
+            case Signature.ALG_ECDSA_SHA_256:
+                tempCred = new StoredES256Credential(cred);
+                break;
+            case Signature.ALG_RSA_SHA_256_PKCS1:
+                tempCred = new StoredRS256Credential(cred);
+                break;
+            case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
+                tempCred = new StoredPS256Credential(cred);
+                break;
+            default:
+                returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                break;
+        }
         if (cred.isResident()) {
             // Check if a credential exists on the exclude list
             if (cred.isExclude() && isPresent(cred.exclude)) {
                 // Throw the error
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
             }
-            // Create the actual credential
-            switch (cred.getAlgorithm()) {
-                case Signature.ALG_ECDSA_SHA_256:
-                    residentCred = new StoredES256Credential(cred);
-                    break;
-                case Signature.ALG_RSA_SHA_256_PKCS1:
-                    residentCred = new StoredRS256Credential(cred);
-                    break;
-                case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
-                    residentCred = new StoredPS256Credential(cred);
-                    break;
-                default:
-                    returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                    break;
-            }
+
             APDU.waitExtension();
             // Add the credential to the resident storage, overwriting if necessary
-            addResident(apdu, residentCred);
+            addResident(apdu, tempCred);
 
             // Initialise the output buffer, for CBOR writing.
             // output buffer needs 0x00 as first byte as status code
@@ -299,19 +306,19 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Put the authdata identifier there
             cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
-            vars[0] = cborEncoder.startByteString((short) (37 + residentCred.getAttestedLen()));
+            vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
             // Stash where it begins
             vars[7] = vars[0];
             // Create the SHA256 hash of the RP ID
-            residentCred.rp.getRp(scratch, (short) 0);
-            vars[0] += sha.doFinal(scratch, (short) 0, residentCred.rp.getRpLen(), inBuf, vars[0]);
+            tempCred.rp.getRp(scratch, (short) 0);
+            vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
             // Set flags - User presence, user verified, attestation present
             inBuf[vars[0]++] = (byte) 0x45;
             // Set the signature counter
-            vars[0] += residentCred.readCounter(inBuf, vars[0]);
+            vars[0] += tempCred.readCounter(inBuf, vars[0]);
             // Read the credential details in
             // Just note down where this starts for future ref
-            vars[0] += residentCred.getAttestedData(inBuf, vars[0]);
+            vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
 
             // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
@@ -331,7 +338,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
-            attestation.update(inBuf, vars[7], (short) (residentCred.getAttestedLen() + 37));
+            attestation.update(inBuf, vars[7], (short) (tempCred.getAttestedLen() + 37));
             // The client data hash is next, which we use to finish off the signature.
             vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
             // Create the byte string for the signature
@@ -347,6 +354,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } else {
             // Non-resident credential
             // TODO - we currently force resident credentials
+
+            
         }
 
     }

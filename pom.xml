@@ -31,12 +31,7 @@
       <version>19.05.08</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.klinec</groupId>
-      <artifactId>jcardsim</artifactId>
-      <version>3.0.4</version>
-      <scope>test</scope>
-    </dependency>
+
     <dependency>
       <groupId>oracle.javacard</groupId>
       <artifactId>api_classic</artifactId>

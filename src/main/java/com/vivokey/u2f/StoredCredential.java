@@ -32,7 +32,7 @@ public abstract class StoredCredential {
     protected boolean initialised;
     protected StoredCredential() {
         if(rng == null) {
-            rng = RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
+            rng = ServerKeyCrypto.getRng();
         }
         id = new byte[16];
         rng.generateData(id, (short) 0, (short) 16);
