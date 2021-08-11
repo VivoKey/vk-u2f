@@ -39,7 +39,7 @@
     </dependency>
     <dependency>
       <groupId>oracle.javacard</groupId>
-      <artifactId>oracle.javacard</artifactId>
+      <artifactId>api_classic</artifactId>
       <version>3.0.4</version>
       <scope>system</scope>
       <systemPath>${project.basedir}/sdks/jc304_kit/lib/api_classic.jar</systemPath>
