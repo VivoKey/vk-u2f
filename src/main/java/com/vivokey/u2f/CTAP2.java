@@ -50,7 +50,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
     private AuthenticatorMakeCredential cred;
     private StoredCredential residentCred;
 
-
     private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
 
@@ -262,6 +261,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // create a credential object
         cred = new AuthenticatorMakeCredential(cborDecoder);
         if (cred.isResident()) {
+            // Check if a credential exists on the exclude list
+            if (cred.isExclude() && isPresent(cred.exclude)) {
+                // Throw the error
+                returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
+            }
             // Create the actual credential
             switch (cred.getAlgorithm()) {
                 case Signature.ALG_ECDSA_SHA_256:
@@ -340,6 +344,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // We're actually done, send this out
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
+        } else {
+            // Non-resident credential
+            // TODO - we currently force resident credentials
         }
 
     }
@@ -495,6 +502,29 @@ public class CTAP2 extends Applet implements ExtendedLength {
     }
 
     /**
+     * Check if anything in the list is present
+     * 
+     * @param list
+     * @return
+     */
+    private boolean isPresent(PublicKeyCredentialDescriptor[] list) {
+        StoredCredential temp;
+        for (vars[7] = (short) 0; vars[7] < discoverableCreds.getLength(); vars[7]++) {
+            temp = discoverableCreds.getCred(vars[7]);
+            if (temp == null) {
+                continue;
+            }
+            for (vars[6] = (short) 0; vars[6] < (short) list.length; vars[6]++) {
+                if (temp.checkId(list[vars[6]].id, (short) 0, (short) list[vars[6]].id.length)) {
+                    return true;
+                }
+            }
+
+        }
+        return false;
+    }
+
+    /**
      * Return an error via APDU - an error on the FIDO2 side is considered a success
      * in APDU-land so we send a response.
      * 
@@ -598,7 +628,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Turns out this is DER encoding, again
 
         // Sign the data
-        vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch, (short) 69);
+        vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch,
+                (short) 69);
         // Create the ByteString to put it into
         cborEncoder.encodeByteString(scratch, (short) 69, vars[3]);
         // Tag 4, user details
@@ -811,10 +842,10 @@ public class CTAP2 extends Applet implements ExtendedLength {
             return;
         }
 
-        if(!apdu.isCommandChainingCLA() &&  apdu.isISOInterindustryCLA()) {
+        if (!apdu.isCommandChainingCLA() && apdu.isISOInterindustryCLA()) {
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         }
-        switch(buffer[ISO7816.OFFSET_INS]) {
+        switch (buffer[ISO7816.OFFSET_INS]) {
             case ISO_INS_GET_DATA:
                 if (isChaining()) {
                     getData(apdu);
@@ -828,7 +859,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             default:
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         }
-        
+
     }
 
     public static void install(byte[] bArray, short bOffset, byte bLength) throws ISOException {
@@ -843,7 +874,5 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
 
     }
-
-    
 
 }

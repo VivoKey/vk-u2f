@@ -29,6 +29,7 @@ public class AuthenticatorMakeCredential {
     private boolean[] options = new boolean[2];
     private byte[] scratch1;
     private byte[] scratch2;
+    public PublicKeyCredentialDescriptor[] exclude;
 
     /**
      * Parses a CBOR structure to create an AuthenticatorMakeCredential object
@@ -215,7 +216,25 @@ public class AuthenticatorMakeCredential {
                     }
                     break;
                 case (short) 5:
-                    // Credential exclusion stuff: TODO
+                    // Credential exclusion stuff
+                    // Parse it
+                    vars[2] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                    exclude = new PublicKeyCredentialDescriptor[vars[2]];
+                    for(vars[0] = 0; vars[0] < vars[2]; vars[0]++) {
+                        // Read the map. It has 2 things in it.
+                        vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        if(vars[1] != 2) {
+                            ISOException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                        }
+                        // Read the id - it must be first
+                        decoder.skipEntry();
+                        // Read the actual id
+                        vars[1] = decoder.readByteString(scratch1, (short) 0);
+                        exclude[vars[0]] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, vars[1]);
+                        // Skip the next two entries (pubkey type)
+                        decoder.skipEntry();
+                        decoder.skipEntry();
+                    }
                 case (short) 6:
                 default:
                     break;
@@ -241,6 +260,10 @@ public class AuthenticatorMakeCredential {
 
     public byte getAlgorithm() {
         return params.getAlgorithm();
+    }
+
+    public boolean isExclude() {
+        return (exclude != null && exclude.length > 0);
     }
 
     /**
