@@ -11,6 +11,7 @@
   </target>
   <target name="clean" description="clean up">
     <!-- Delete the built applet -->
-    <delete dir="target/*.cap"/>
+    <delete dir="target/CTAP2.cap"/>
+    <delete dir="target/U2FApplet.cap"/>
   </target>
 </project>
