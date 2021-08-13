@@ -23,14 +23,8 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
-import javacard.security.CryptoException;
-import javacard.security.ECKey;
-import javacard.security.ECPrivateKey;
-import javacard.security.KeyBuilder;
-import javacard.security.KeyPair;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
-import javacard.security.ECPublicKey;
 import javacardx.apdu.ExtendedLength;
 
 public class CTAP2 extends Applet implements ExtendedLength {
@@ -43,7 +37,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
     private short[] vars;
     private CredentialArray discoverableCreds;
     private MessageDigest sha;
-    public AttestationKeyPair attestation;
+    private AttestationKeyPair attestation;
     private byte[] info;
     private StoredCredential[] assertionCreds;
     private short[] nextAssertion;
@@ -116,7 +110,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
-    public static final byte FIDO2_VENDOR_TEST_COMPRESS = (byte) 0x4B;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -194,13 +187,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
-                break;
-            case FIDO2_VENDOR_TEST_COMPRESS:
-                if(vendorCheckCompressed()) {
-                    returnError(apdu, CTAP1_ERR_SUCCESS);
-                } else {
-                    returnError(apdu, CTAP2_ERR_INVALID_OPTION);
-                }
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -894,35 +880,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
     }
 
-    /**
-     * Checks if a card supports compressed key by generating, exporting, and
-     * importing a private key.
-     * 
-     * @return if the card supports compressed keys
-     */
-    public boolean vendorCheckCompressed() {
-        // Create a generic pair
-        KeyPair test = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
-        // Set the public key parameters
-        KeyParams.sec256r1params((ECKey) test.getPublic());
-        // Generate the keys
-        test.genKeyPair();
-        // Export the public key to scratch
-        vars[0] = ((ECPublicKey) test.getPublic()).getW(scratch, (short) 0);
-        // Generate the compressed form of the pubkey into inBuf
-        // Zero is 2 or 3, this says if it's even or odd apparently?
-        inBuf[0] = (byte) ((byte) 2 + (byte) (scratch[96] & (byte) 1));
-        Util.arrayCopy(scratch, (short) 1, inBuf, (short) 1, (short) 32);
-        // Create a keypair to set
-        KeyPair copyTo = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
-        KeyParams.sec256r1params((ECKey) copyTo.getPublic());
-        KeyParams.sec256r1params((ECKey) copyTo.getPrivate());
-        try {
-            ((ECPublicKey) copyTo.getPublic()).setW(inBuf, (short) 0, (short) 33);
-        } catch (CryptoException e) {
-            return false;
-        }
-        return true;
-    }
+    
 
 }
