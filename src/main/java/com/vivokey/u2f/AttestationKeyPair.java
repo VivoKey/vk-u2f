@@ -33,7 +33,7 @@ public class AttestationKeyPair {
     public short x509len;
     public AttestationKeyPair() {
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
-        Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
+        KeyParams.sec256r1params((ECKey) kp.getPublic());
         // Generate a new keypair for attestation.
         kp.genKeyPair();
         // Initialise a signature object

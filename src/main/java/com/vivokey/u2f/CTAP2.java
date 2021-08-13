@@ -23,11 +23,14 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
-import javacard.security.AESKey;
+import javacard.security.CryptoException;
+import javacard.security.ECKey;
+import javacard.security.ECPrivateKey;
 import javacard.security.KeyBuilder;
+import javacard.security.KeyPair;
 import javacard.security.MessageDigest;
-import javacard.security.RandomData;
 import javacard.security.Signature;
+import javacard.security.ECPublicKey;
 import javacardx.apdu.ExtendedLength;
 
 public class CTAP2 extends Applet implements ExtendedLength {
@@ -53,7 +56,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
     private AuthenticatorMakeCredential cred;
 
     private StoredCredential tempCred;
-
 
     private static final byte ISO_INS_GET_DATA = (byte) 0xC0;
     private static final byte FIDO2_INS_NFCCTAP_MSG = (byte) 0x10;
@@ -114,6 +116,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
+    public static final byte FIDO2_VENDOR_TEST_COMPRESS = (byte) 0x4B;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -124,7 +127,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
     private CTAP2() {
 
-        // 1200 bytes of a transient buffer for read-in and out
+        // 1210 bytes of a transient buffer for read-in and out
+        // We advertise 1200 bytes supported, but 10 bytes for protocol nonsense
         try {
             inBuf = JCSystem.makeTransientByteArray((short) 1210, JCSystem.CLEAR_ON_DESELECT);
         } catch (Exception e) {
@@ -190,6 +194,13 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
+                break;
+            case FIDO2_VENDOR_TEST_COMPRESS:
+                if(vendorCheckCompressed()) {
+                    returnError(apdu, CTAP1_ERR_SUCCESS);
+                } else {
+                    returnError(apdu, CTAP2_ERR_INVALID_OPTION);
+                }
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -355,7 +366,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Non-resident credential
             // TODO - we currently force resident credentials
 
-            
         }
 
     }
@@ -882,6 +892,44 @@ public class CTAP2 extends Applet implements ExtendedLength {
             applet.register();
         }
 
+    }
+
+    /**
+     * Checks if a card supports compressed key by generating, exporting, and
+     * importing a private key.
+     * 
+     * @return if the card supports compressed keys
+     */
+    public boolean vendorCheckCompressed() {
+        // Create a generic pair
+        KeyPair test = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        // Set the public key parameters
+        KeyParams.sec256r1params((ECKey) test.getPublic());
+        // Generate the keys
+        test.genKeyPair();
+        // Export the public key to scratch
+        vars[0] = ((ECPublicKey) test.getPublic()).getW(scratch, (short) 0);
+        // Generate the compressed form of the pubkey into inBuf
+        // Zero is 2 or 3, this says if it's even or odd apparently?
+        inBuf[0] = (byte) ((byte) 2 + (byte) (scratch[96] & (byte) 1));
+        Util.arrayCopy(scratch, (short) 1, inBuf, (short) 1, (short) 32);
+        // Create a keypair to set
+        KeyPair copyTo = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        KeyParams.sec256r1params((ECKey) copyTo.getPublic());
+        KeyParams.sec256r1params((ECKey) copyTo.getPrivate());
+        try {
+            ((ECPublicKey) copyTo.getPublic()).setW(inBuf, (short) 0, (short) 33);
+            // Create the compressed private key form
+            // Export the private key to scratch
+            vars[1] = ((ECPrivateKey) test.getPrivate()).getS(scratch, (short) 0);
+            // Set sign bit
+            inBuf[0] = (byte) ((byte) 2 + (byte) (scratch[96] & (byte) 1));
+            Util.arrayCopy(scratch, (short) 1, inBuf, (short) 1, (short) 32);
+            ((ECPrivateKey) copyTo.getPrivate()).setS(inBuf, (short) 0, (short) 33);
+        } catch (CryptoException e) {
+            return false;
+        }
+        return true;
     }
 
 }

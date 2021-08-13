@@ -30,7 +30,7 @@ public class StoredES256Credential extends StoredCredential {
     public StoredES256Credential(AuthenticatorMakeCredential inputData) {
         // Generate a new ES256 credential
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
-        Secp256r1.setCommonCurveParameters((ECKey) kp.getPublic());
+        KeyParams.sec256r1params((ECKey) kp.getPublic());
         kp.genKeyPair();
         user = inputData.getUser();
         rp = inputData.getRp();
