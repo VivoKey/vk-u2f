@@ -30,6 +30,7 @@ public abstract class StoredCredential {
     PublicKeyCredentialRpEntity rp;
     private byte[] sigCounter;
     protected boolean initialised;
+    protected boolean isResident;
     protected StoredCredential() {
         if(rng == null) {
             rng = ServerKeyCrypto.getRng();
@@ -39,6 +40,7 @@ public abstract class StoredCredential {
         sigCounter = new byte[4];
         initialised = false;
     }
+    public abstract StoredCredential createSRCredential(byte[] inBuf, short inOff, short inLen);
     // Generic ID check function, for credential IDs
     public boolean checkId(byte[] inBuf, short inOff, short inLen) {
         if(inLen != (short) 16) {
@@ -126,4 +128,5 @@ public abstract class StoredCredential {
         Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
 
     }
+
 }

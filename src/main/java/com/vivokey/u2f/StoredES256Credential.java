@@ -19,6 +19,7 @@ package com.vivokey.u2f;
 import javacard.framework.JCSystem;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
+import javacard.security.ECPrivateKey;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.Signature;
@@ -36,8 +37,33 @@ public class StoredES256Credential extends StoredCredential {
         rp = inputData.getRp();
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
+        isResident = inputData.isResident();
+        if(!isResident) {
+            // Create non-resident format
+            id = new byte[1];
+        }
     }
 
+    protected StoredES256Credential(byte[] dataArr, short dataOff, short dataLen) {
+        // Format is dependent on the credential - this one is dirt simple.
+        // Public key, as formatted for ANSI X9.62, and then private key, formatted
+        // however it is formatted.
+
+        // Create the keypair
+        kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        // Set the keypair as sec256r1
+        KeyParams.sec256r1params((ECKey) kp.getPublic());
+        KeyParams.sec256r1params((ECKey) kp.getPrivate());
+        // Load W
+        ((ECPublicKey) kp.getPublic()).setW(dataArr, dataOff, (short) 97);
+        // Load S
+        ((ECPrivateKey) kp.getPrivate()).setS(dataArr, (short) (dataOff+97), (short) (dataLen - 97));
+        sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
+        sig.init(kp.getPrivate(), Signature.MODE_SIGN);
+        isResident = false;
+        
+
+    }
 
     @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
@@ -49,9 +75,17 @@ public class StoredES256Credential extends StoredCredential {
 
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
-        // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
-        return (short) 111;
+        // Depends on if we're a resident key or not
+        if (isResident) {
+            // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
+            // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
+            return (short) 111;
+        } else {
+            // AAGUID (16), 00?? (2), Credential ID (??), the map (1 byte header, 6 bytes
+            // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
+            return (short) 111;
+        }
+
     }
 
     @Override
@@ -90,6 +124,15 @@ public class StoredES256Credential extends StoredCredential {
         w = null;
         JCSystem.requestObjectDeletion();
         return 111;
+    }
+
+    @Override
+    public StoredES256Credential createSRCredential(byte[] inBuf, short inOff, short inLen) {
+        // Decrypt the credential into scratch provided by ServerKeyCrypto
+        byte[] scratch = ServerKeyCrypto.getCredScratch();
+        short len = ServerKeyCrypto.decryptData(inBuf, inOff, inLen, scratch, (short) 0);
+        // Pass over to the constructor
+        return new StoredES256Credential(scratch, (short) 0, len);
     }
 
 }
