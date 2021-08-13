@@ -919,13 +919,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
         KeyParams.sec256r1params((ECKey) copyTo.getPrivate());
         try {
             ((ECPublicKey) copyTo.getPublic()).setW(inBuf, (short) 0, (short) 33);
-            // Create the compressed private key form
-            // Export the private key to scratch
-            vars[1] = ((ECPrivateKey) test.getPrivate()).getS(scratch, (short) 0);
-            // Set sign bit
-            inBuf[0] = (byte) ((byte) 2 + (byte) (scratch[96] & (byte) 1));
-            Util.arrayCopy(scratch, (short) 1, inBuf, (short) 1, (short) 32);
-            ((ECPrivateKey) copyTo.getPrivate()).setS(inBuf, (short) 0, (short) 33);
         } catch (CryptoException e) {
             return false;
         }
