@@ -27,8 +27,7 @@ public class AuthenticatorMakeCredential {
     private PublicKeyCredentialUserEntity user;
     private PublicKeyCredentialParams params;
     private boolean[] options = new boolean[2];
-    private byte[] scratch1;
-    private byte[] scratch2;
+
     public PublicKeyCredentialDescriptor[] exclude;
 
     /**
@@ -45,8 +44,18 @@ public class AuthenticatorMakeCredential {
             vars = new short[8];
         }
         // Start reading, we should get a map
-        scratch1 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
-        scratch2 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
+        byte[] scratch1;
+        try {
+            scratch1 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
+        } catch (Exception e) {
+            scratch1 = new byte[64];
+        }
+        byte[] scratch2;
+        try {
+            scratch2 = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_DESELECT);
+        } catch (Exception e) {
+            scratch2 = new byte[64];
+        }
         vars[4] = decoder.readMajorType(CBORBase.TYPE_MAP);
         // options[0] is rk - default true for us
         // options[1] is uv - default false
