@@ -23,6 +23,10 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.ECKey;
+import javacard.security.ECPrivateKey;
+import javacard.security.KeyBuilder;
+import javacard.security.KeyPair;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
@@ -110,6 +114,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public static final byte FIDO2_VENDOR_PERSO_COMPLETE = (byte) 0x43;
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
+    // This isn't any on-board private keypair - just a specificially generated one for a test
+    // No data exfiltration here!
+    public static final byte FIDO2_VENDOR_GETPRIV = (byte) 0x4B;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
@@ -187,6 +194,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
+                break;
+            case FIDO2_VENDOR_GETPRIV:
+                getPrivate(apdu);
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -878,6 +888,18 @@ public class CTAP2 extends Applet implements ExtendedLength {
             applet.register();
         }
 
+    }
+    /**
+     * Generates and exports a random private key to check the construction. 
+     * @param apdu
+     */
+    private void getPrivate(APDU apdu) {
+        KeyPair test = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+        KeyParams.sec256r1params((ECKey) test.getPublic());
+        test.genKeyPair();
+        inBuf[0] = 0x00;
+        vars[0] = (short) (1 + ((ECPrivateKey) test.getPrivate()).getS(inBuf, (short) 1));
+        sendLongChaining(apdu, vars[0]);
     }
 
     
