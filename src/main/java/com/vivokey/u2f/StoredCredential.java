@@ -31,8 +31,9 @@ public abstract class StoredCredential {
     private byte[] sigCounter;
     protected boolean initialised;
     protected boolean isResident;
+
     protected StoredCredential() {
-        if(rng == null) {
+        if (rng == null) {
             rng = ServerKeyCrypto.getRng();
         }
         id = new byte[16];
@@ -40,10 +41,23 @@ public abstract class StoredCredential {
         sigCounter = new byte[4];
         initialised = false;
     }
+
+    protected StoredCredential(byte[] dataArr, short dataOff, short dataLen, byte[] inBuf, short inOff,
+    short inLen)  {
+        if (rng == null) {
+            rng = ServerKeyCrypto.getRng();
+        }
+        // Set id first
+        id = new byte[inLen];
+        Util.arrayCopy(inBuf, inOff, id, (short) 0, inLen);
+        // The rest is implemented down the line
+    }
+
     public abstract StoredCredential createSRCredential(byte[] inBuf, short inOff, short inLen);
+
     // Generic ID check function, for credential IDs
     public boolean checkId(byte[] inBuf, short inOff, short inLen) {
-        if(inLen != (short) 16) {
+        if (inLen != (short) 16) {
             return false;
         }
         return Util.arrayCompare(id, (short) 0, inBuf, inOff, inLen) == 0;
@@ -52,22 +66,22 @@ public abstract class StoredCredential {
     public boolean[] getPresentUser() {
         return user.dataPresent;
     }
+
     /**
-     * Increment the counter.
-     * NOTE: Atomic.
+     * Increment the counter. NOTE: Atomic.
      */
     protected void incrementCounter() {
         JCSystem.beginTransaction();
 
-        for(short i = 3; i > 1; i--) {
-            if(sigCounter[i] == 0xFF) {
-                sigCounter[(short) (i-1)]++;
+        for (short i = 3; i > 1; i--) {
+            if (sigCounter[i] == 0xFF) {
+                sigCounter[(short) (i - 1)]++;
                 sigCounter[i] = 0x00;
                 JCSystem.commitTransaction();
                 return;
             }
         }
-        if(sigCounter[0] == 0xFF && sigCounter[1] == 0xFF && sigCounter[2] == 0xFF && sigCounter[3] == 0xFF) {
+        if (sigCounter[0] == 0xFF && sigCounter[1] == 0xFF && sigCounter[2] == 0xFF && sigCounter[3] == 0xFF) {
             // Overflow, roll to 0
             Util.arrayFillNonAtomic(sigCounter, (short) 0, (short) 4, (byte) 0x00);
             JCSystem.commitTransaction();
@@ -76,9 +90,12 @@ public abstract class StoredCredential {
         sigCounter[3]++;
         JCSystem.commitTransaction();
     }
+
     /**
-     * Copies the counter (a 32-bit unsigned int) to the buffer specified, at offset bufOff.
-     * @param buf the buffer to copy into
+     * Copies the counter (a 32-bit unsigned int) to the buffer specified, at offset
+     * bufOff.
+     * 
+     * @param buf    the buffer to copy into
      * @param bufOff the offset to begin at
      * @returns length
      */
@@ -87,33 +104,37 @@ public abstract class StoredCredential {
         return (short) 4;
     }
 
-
     /**
-     * Signature class. Signs into the output buffer from the input buffer using the keypair. 
-     * @param inBuf input buffer to sign
-     * @param inOff offset in buffer
-     * @param inLen length of data to sign
+     * Signature class. Signs into the output buffer from the input buffer using the
+     * keypair.
+     * 
+     * @param inBuf  input buffer to sign
+     * @param inOff  offset in buffer
+     * @param inLen  length of data to sign
      * @param outBuf output buffer to sign into
      * @param outOff output buffer offset to begin writing at
      */
     public abstract short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff);
+
     /**
      * Returns the attestation data (pubkey and definition) attached to this object.
+     * 
      * @param buf buffer to copy the details to
      * @param off offset to begin copying to
      * @returns length
      */
     public abstract short getAttestedData(byte[] buf, short off);
 
-
     /**
      * Returns the length of the attestation data that will be fed later on.
+     * 
      * @returns length
      */
     public abstract short getAttestedLen();
 
     /**
      * Protected common attestation parameters
+     * 
      * @param buf
      * @param off
      * @return
@@ -121,11 +142,10 @@ public abstract class StoredCredential {
     protected void doAttestationCommon(byte[] buf, short off) {
         // AAGUID
         Util.arrayCopy(CTAP2.aaguid, (short) 0, buf, off, (short) 16);
-        // Length of the credential ID - 16 bytes
-        buf[(short) (off+16)] = 0x00;
-        buf[(short) (off+17)] = 0x10;
+        // Length of the credential ID - variable
+        Util.setShort(buf, (short) (off + 16), (short) id.length);
         // Copy the credential ID
-        Util.arrayCopy(id, (short) 0, buf, (short) (off+18), (short) 16);
+        Util.arrayCopy(id, (short) 0, buf, (short) (off + 18), (short) id.length);
 
     }
 

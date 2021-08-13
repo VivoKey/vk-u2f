@@ -46,9 +46,9 @@ public class StoredPS256Credential extends StoredCredential {
 
     @Override
     public short getAttestedLen() {
-        // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 5 bytes type
+        // AAGUID (16), len (2), Credential ID (variable), map (1 byte header + 5 bytes type
         // and alg + 260 bytes mod inc header, 5 bytes exp inc header)
-        return (short) 305;
+        return (short) (289 + id.length);
     }
 
     @Override
@@ -79,6 +79,14 @@ public class StoredPS256Credential extends StoredCredential {
         start = enc.startByteString((short) 3);
         ((RSAPublicKey) kp.getPublic()).getExponent(buf, start);
         return 305;
+    }
+
+
+
+    @Override
+    public StoredPS256Credential createSRCredential(byte[] inBuf, short inOff, short inLen) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

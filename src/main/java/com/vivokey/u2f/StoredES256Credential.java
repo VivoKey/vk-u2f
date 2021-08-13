@@ -17,6 +17,7 @@
 package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
+import javacard.framework.Util;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.ECPrivateKey;
@@ -29,6 +30,7 @@ public class StoredES256Credential extends StoredCredential {
     Signature sig;
 
     public StoredES256Credential(AuthenticatorMakeCredential inputData) {
+        super();
         // Generate a new ES256 credential
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
         KeyParams.sec256r1params((ECKey) kp.getPublic());
@@ -38,30 +40,38 @@ public class StoredES256Credential extends StoredCredential {
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
         isResident = inputData.isResident();
-        if(!isResident) {
+        if (!isResident) {
             // Create non-resident format
-            id = new byte[1];
+            // Internal representation: 65 bytes for public key, 32 bytes for private
+            // 128 bytes once padded, plus 16 more for IV so 144 byte ID
+            id = new byte[144];
+            // Use credScratch for making an internal representation
+            byte[] scratch = ServerKeyCrypto.getCredScratch();
+            // Copy W
+            short len = ((ECPublicKey) kp.getPublic()).getW(scratch, (short) 0);
+            len += ((ECPrivateKey) kp.getPrivate()).getS(scratch, (short) 65);
+            ServerKeyCrypto.encryptData(scratch, (short) 0, len, id, (short) 0);
         }
     }
 
-    protected StoredES256Credential(byte[] dataArr, short dataOff, short dataLen) {
+    protected StoredES256Credential(byte[] dataArr, short dataOff, short dataLen, byte[] inBuf, short inOff,
+            short inLen) {
         // Format is dependent on the credential - this one is dirt simple.
         // Public key, as formatted for ANSI X9.62, and then private key, formatted
         // however it is formatted.
-
+        super(dataArr, dataOff, dataLen, inBuf, inOff, inLen);
         // Create the keypair
         kp = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
         // Set the keypair as sec256r1
         KeyParams.sec256r1params((ECKey) kp.getPublic());
         KeyParams.sec256r1params((ECKey) kp.getPrivate());
         // Load W
-        ((ECPublicKey) kp.getPublic()).setW(dataArr, dataOff, (short) 97);
+        ((ECPublicKey) kp.getPublic()).setW(dataArr, dataOff, (short) 65);
         // Load S
-        ((ECPrivateKey) kp.getPrivate()).setS(dataArr, (short) (dataOff+97), (short) (dataLen - 97));
+        ((ECPrivateKey) kp.getPrivate()).setS(dataArr, (short) (dataOff + 65), (short) (dataLen - 65));
         sig = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
         sig.init(kp.getPrivate(), Signature.MODE_SIGN);
         isResident = false;
-        
 
     }
 
@@ -75,16 +85,10 @@ public class StoredES256Credential extends StoredCredential {
 
     @Override
     public short getAttestedLen() {
-        // Depends on if we're a resident key or not
-        if (isResident) {
-            // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
-            // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
-            return (short) 111;
-        } else {
-            // AAGUID (16), 00?? (2), Credential ID (??), the map (1 byte header, 6 bytes
-            // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
-            return (short) 111;
-        }
+        // Turns out just calculate it on the fly
+        // AAGUID (16), len (2), Credential ID (variable), the map (1 byte header, 6 bytes
+        // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
+        return (short) (16 + 2 + id.length + 77);
 
     }
 
@@ -132,7 +136,7 @@ public class StoredES256Credential extends StoredCredential {
         byte[] scratch = ServerKeyCrypto.getCredScratch();
         short len = ServerKeyCrypto.decryptData(inBuf, inOff, inLen, scratch, (short) 0);
         // Pass over to the constructor
-        return new StoredES256Credential(scratch, (short) 0, len);
+        return new StoredES256Credential(scratch, (short) 0, len, inBuf, inOff, inLen);
     }
 
 }
