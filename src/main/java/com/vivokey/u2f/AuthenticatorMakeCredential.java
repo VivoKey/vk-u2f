@@ -116,12 +116,9 @@ public class AuthenticatorMakeCredential {
                     try {
                         // UserEntity, create
                         user = new PublicKeyCredentialUserEntity();
-                        // Read the map length - should be at least 3
+                        // Read the map length
                         vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        // If less than 3, error
-                        if (vars[7] < (short) 3) {
-                            ISOException.throwIt((short) 0x7030);
-                        }
+
                         // Read the map iteratively
                         for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
                             // Read the text string in
