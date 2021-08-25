@@ -69,10 +69,9 @@ public class AuthenticatorMakeCredential {
             switch (vars[5]) {
                 case (short) 1:
                     // Grab and store the data hash
-                    // To prevent extra copies, reading raw
-                    vars[7] = decoder.readLength();
+                    vars[7] = decoder.readByteString(scratch1, (short) 0);
                     dataHash = new byte[vars[7]];
-                    decoder.readRawByteArray(dataHash, (short) 0, vars[7]);
+                    Util.arrayCopy(scratch1, (short) 0, dataHash, (short) 0, vars[7]);
                     break;
                 case (short) 2:
                     // Rp object, create it
@@ -269,6 +268,10 @@ public class AuthenticatorMakeCredential {
                     decoder.skipEntry();
                     break;
 
+            }
+            // Check we've got stuff like the clientDataHash
+            if(dataHash == null || dataHash.length == (byte) 0 || rp == null || user == null || params == null) {
+                UserException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
             }
 
         }
