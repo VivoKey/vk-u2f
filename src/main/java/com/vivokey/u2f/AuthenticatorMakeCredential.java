@@ -271,6 +271,15 @@ public class AuthenticatorMakeCredential {
                     break;
                 
                 case (short) 6:
+                    // Extensions
+                    // We don't support any yet
+                    // So check it's a map and skip
+                    if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                        break;
+                    }
+                    decoder.skipEntry();
+                    break;
                 default:
                     // Skip it transparently
                     decoder.skipEntry();
