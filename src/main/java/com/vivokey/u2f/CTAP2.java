@@ -193,7 +193,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             case FIDO2_AUTHENTICATOR_RESET:
                 // Need to finish doing this, we can, i mean, but I don't like it
-                returnError(apdu, CTAP1_ERR_SUCCESS);
+                doReset(apdu);
                 break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
@@ -542,6 +542,16 @@ public class CTAP2 extends Applet implements ExtendedLength {
         return false;
     }
 
+
+    /**
+     * Reset the authenticator. This doesn't actually take much.
+     * TODO: Implement checking. This is just so testing doesn't crap out.
+     */
+    private void doReset(APDU apdu) {
+        discoverableCreds = new CredentialArray((short) 20);
+        JCSystem.requestObjectDeletion();
+        returnError(apdu, CTAP1_ERR_SUCCESS);
+    }
     /**
      * Return an error via APDU - an error on the FIDO2 side is considered a success
      * in APDU-land so we send a response.
