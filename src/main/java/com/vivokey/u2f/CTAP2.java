@@ -683,6 +683,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
             cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.name.str, (short) 0,
                     assertionCreds[nextAssertion[0]].user.name.len);
         }
+        if(usrFlags[3]) {
+            // Has the 'icon' tag
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_ICON, (short) 0, (short) 4);
+            cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.icon, (short) 0,
+                    (short) assertionCreds[nextAssertion[0]].user.icon.length);
+        }
 
         // Done tag 4
         if (mapLen == 5) {

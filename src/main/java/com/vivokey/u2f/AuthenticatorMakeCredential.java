@@ -85,9 +85,7 @@ public class AuthenticatorMakeCredential {
                     }
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-
                         // Read the text string in
-
                         vars[1] = decoder.readTextString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
@@ -141,8 +139,13 @@ public class AuthenticatorMakeCredential {
                             vars[1] = decoder.readTextString(scratch1, (short) 0);
                             // Set it
                             user.setDisplayName(scratch1, vars[1]);
-                        } else {
-                            // Is optional, so we need to skip the byteString
+                        } else
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
+                            // Read the string into scratch
+                            vars[1] = decoder.readTextString(scratch1, (short) 0);
+                            user.setIcon(scratch1, (short) 0, vars[1]);
+                        } else  {
+                            // Is optional, so we need to skip the value
                             decoder.skipEntry();
                         }
 
@@ -184,9 +187,15 @@ public class AuthenticatorMakeCredential {
                                     }
                                 }
 
+                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                                // Public key type
+                                // Check it
+                                vars[4] = decoder.readTextString(scratch1, (short) 0);
+                                if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10) != (byte) 0) {
+                                    UserException.throwIt(CTAP2.CTAP1_ERR_INVALID_PARAMETER);
+                                }
                             } else {
-                                // Must be the public key, so we need to skip the next thing
-                                decoder.skipEntry();
+                                UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                             }
                         }
                         // Done

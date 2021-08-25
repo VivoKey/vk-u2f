@@ -25,8 +25,10 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
     public boolean[] dataPresent;
     public byte numData;
 
+    public byte[] icon;
+
     public PublicKeyCredentialUserEntity() {
-        dataPresent = new boolean[3];
+        dataPresent = new boolean[4];
         numData = 0;
     }
 
@@ -35,6 +37,15 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
         Util.arrayCopy(src, off, id, (short) 0, len);
         if (!dataPresent[1]) {
             dataPresent[1] = true;
+            numData++;
+        }
+    }
+
+    public void setIcon(byte[] src, short off, short len) {
+        icon = new byte[len];
+        Util.arrayCopy(src, off, id, (short) 0, len);
+        if (!dataPresent[3]) {
+            dataPresent[3] = true;
             numData++;
         }
     }

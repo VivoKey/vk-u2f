@@ -225,6 +225,7 @@ public class CBORDecoder extends CBORBase {
     public short readTextString(byte[] outBuffer, short outOffset) throws UserException {
         if(getMajorType() != TYPE_TEXT_STRING) {
             UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            return 0;
         }
         short length = readLength();
         return readRawByteArray(outBuffer, outOffset, length);
