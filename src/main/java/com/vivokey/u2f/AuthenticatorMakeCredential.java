@@ -144,9 +144,14 @@ public class AuthenticatorMakeCredential {
                         } else
                         // If icon, even
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
-                            // Read the string into scratch
-                            vars[1] = decoder.readTextString(scratch1, (short) 0);
-                            user.setIcon(scratch1, (short) 0, vars[1]);
+                            try {
+                                // Read the string into scratch
+                            vars[1] = decoder.readTextString(scratch2, (short) 0);
+                            user.setIcon(scratch2, vars[1]);
+                            } catch (ArrayIndexOutOfBoundsException e) {
+                                UserException.throwIt((byte) (0x20 | vars[1]));
+                                break;
+                            }
                         } else  {
                             // Is optional, so we need to skip the value
                             decoder.skipEntry();
