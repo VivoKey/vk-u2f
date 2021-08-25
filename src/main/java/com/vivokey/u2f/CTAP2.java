@@ -883,6 +883,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         if (!apdu.isCommandChainingCLA() && apdu.isISOInterindustryCLA()) {
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         }
+        JCSystem.requestObjectDeletion();
         switch (buffer[ISO7816.OFFSET_INS]) {
             case ISO_INS_GET_DATA:
                 if (isChaining()) {
