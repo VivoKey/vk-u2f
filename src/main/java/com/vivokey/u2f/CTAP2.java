@@ -542,16 +542,16 @@ public class CTAP2 extends Applet implements ExtendedLength {
         return false;
     }
 
-
     /**
-     * Reset the authenticator. This doesn't actually take much.
-     * TODO: Implement checking. This is just so testing doesn't crap out.
+     * Reset the authenticator. This doesn't actually take much. TODO: Implement
+     * checking. This is just so testing doesn't crap out.
      */
     private void doReset(APDU apdu) {
         discoverableCreds = new CredentialArray((short) 20);
         JCSystem.requestObjectDeletion();
         returnError(apdu, CTAP1_ERR_SUCCESS);
     }
+
     /**
      * Return an error via APDU - an error on the FIDO2 side is considered a success
      * in APDU-land so we send a response.
@@ -678,33 +678,44 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Tag 4, user details
         cborEncoder.encodeUInt8((byte) 0x04);
         // Start the PublicKeyCredentialUserEntity map
-        cborEncoder.startMap(assertionCreds[nextAssertion[0]].user.numData);
-        // We need to check what we have for users
-        // Iterate over the bit flags
-        boolean[] usrFlags = assertionCreds[nextAssertion[0]].getPresentUser();
-        if (usrFlags[2]) {
-            // Has the 'displayName' tag
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_DISPLAYNAME, (short) 0, (short) 11);
-            cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.displayName.str, (short) 0,
-                    assertionCreds[nextAssertion[0]].user.displayName.len);
-        }
-        if (usrFlags[1]) {
-            // The 'id' tag
+
+        // If we have "UV" enabled, then we do all the info we have.
+        if (assertion.options[1]) {
+            cborEncoder.startMap(assertionCreds[nextAssertion[0]].user.numData);
+            // We need to check what we have for users
+            // Iterate over the bit flags
+            boolean[] usrFlags = assertionCreds[nextAssertion[0]].getPresentUser();
+            // This actually
+            if (usrFlags[2]) {
+                // Has the 'displayName' tag
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_DISPLAYNAME, (short) 0, (short) 11);
+                cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.displayName.str, (short) 0,
+                        assertionCreds[nextAssertion[0]].user.displayName.len);
+            }
+            if (usrFlags[1]) {
+                // The 'id' tag
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
+                cborEncoder.encodeByteString(assertionCreds[nextAssertion[0]].user.id, (short) 0,
+                        (short) assertionCreds[nextAssertion[0]].user.id.length);
+            }
+            if (usrFlags[0]) {
+                // The 'name'
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_NAME, (short) 0, (short) 4);
+                cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.name.str, (short) 0,
+                        assertionCreds[nextAssertion[0]].user.name.len);
+            }
+            if (usrFlags[3]) {
+                // Has the 'icon' tag
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_ICON, (short) 0, (short) 4);
+                cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.icon, (short) 0,
+                        (short) assertionCreds[nextAssertion[0]].user.icon.length);
+            }
+        } else {
+            // UV not enabled. Don't send extra info apart from the id field
+            cborEncoder.startMap((short) 1);
             cborEncoder.encodeTextString(Utf8Strings.UTF8_ID, (short) 0, (short) 2);
             cborEncoder.encodeByteString(assertionCreds[nextAssertion[0]].user.id, (short) 0,
                     (short) assertionCreds[nextAssertion[0]].user.id.length);
-        }
-        if (usrFlags[0]) {
-            // The 'name'
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_NAME, (short) 0, (short) 4);
-            cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.name.str, (short) 0,
-                    assertionCreds[nextAssertion[0]].user.name.len);
-        }
-        if (usrFlags[3]) {
-            // Has the 'icon' tag
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_ICON, (short) 0, (short) 4);
-            cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.icon, (short) 0,
-                    (short) assertionCreds[nextAssertion[0]].user.icon.length);
         }
 
         // Done tag 4
