@@ -53,7 +53,7 @@ public class AuthenticatorGetAssertion {
             switch(vars[1]) {
                 case 0x01:
                     // RpId
-                    vars[2] = decoder.readByteString(scratch, (short) 0);
+                    vars[2] = decoder.readTextString(scratch, (short) 0);
                     rpId = new byte[vars[2]];
                     // Copy to it
                     Util.arrayCopy(scratch, (short) 0, rpId, (short) 0, vars[2]);
@@ -102,10 +102,13 @@ public class AuthenticatorGetAssertion {
                     break;
                 case 0x04:
                     // Extensions - we mostly ignore
+                    decoder.skipEntry();
                 case 0x06:
                     // Pin stuff
+                    decoder.skipEntry();
                 case 0x07:
                     // Pin protocol
+                    decoder.skipEntry();
                 default:
                     UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
             }
