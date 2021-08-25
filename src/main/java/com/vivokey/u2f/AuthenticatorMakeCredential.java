@@ -225,9 +225,17 @@ public class AuthenticatorMakeCredential {
                                 vars[1] = decoder.readByteString(scratch1, (short) 0);
                                 exclude[vars[0]] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, vars[1]);
                             } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
-                                // Read the type
-                                vars[1] = decoder.readTextString(scratch2, (short) 0);
-                                // It doesn't matter, we should just silently accept
+                                // Read the type field, it must be text
+                                if(decoder.getMajorType() != CBORBase.TYPE_TEXT_STRING) {
+                                    UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                    break;
+                                }
+                                decoder.skipEntry();
+                                // It doesn't matter what it is, just check it's string and exists.
+                            } else {
+                                // If it's not these two, throw an error
+                                UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                break;
                             }
                         }
 
