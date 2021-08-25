@@ -197,7 +197,7 @@ public class AuthenticatorMakeCredential {
                                 // Check it
                                 vars[4] = decoder.readTextString(scratch1, (short) 0);
                                 if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10) != (byte) 0) {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                                    UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                                 }
                             } else {
                                 UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
@@ -223,7 +223,6 @@ public class AuthenticatorMakeCredential {
                         // Read the actual id
                         vars[1] = decoder.readByteString(scratch1, (short) 0);
                         exclude[vars[0]] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, vars[1]);
-                        // Skip the next two entries (pubkey type)
                         decoder.skipEntry();
                         decoder.skipEntry();
                     }

@@ -24,7 +24,6 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
-import javacard.security.CryptoException;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
