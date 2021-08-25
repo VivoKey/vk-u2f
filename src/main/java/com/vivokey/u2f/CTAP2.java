@@ -24,6 +24,7 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
+import javacard.security.CryptoException;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
@@ -238,6 +239,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public void attestSignRaw(APDU apdu, short bufLen) {
         if (persoComplete) {
             returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
+            return;
         }
         Util.arrayCopy(inBuf, (short) 1, scratch, (short) 0, (short) (bufLen - 1));
         inBuf[0] = 0x00;
@@ -250,6 +252,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public void attestSetCert(APDU apdu, short bufLen) {
         if (persoComplete) {
             returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
+            return;
         }
         // We don't actually use any CBOR here, simplify copying
         attestation.setCert(inBuf, (short) 1, (short) (bufLen - 1));
@@ -271,36 +274,20 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
-        } catch (ArrayIndexOutOfBoundsException e) {
-            returnError(apdu, (byte) 0x80);
-            return;
-        } catch (ArrayStoreException e) {
-            returnError(apdu, (byte) 0x81);
-            return;
-        } catch (IndexOutOfBoundsException e) {
-            returnError(apdu, (byte) 0x82);
-            return;
-        } catch (NegativeArraySizeException e) {
-            returnError(apdu, (byte) 0x83);
-            return;
-        } catch (NullPointerException e) {
-            returnError(apdu, (byte) 0x84);
-            return;
-        } catch (SecurityException e) {
-            returnError(apdu, (byte) 0x85);
-            return;
-        } catch (RuntimeException e) {
-            returnError(apdu, (byte) 0x86);
-            return;
-        } catch (Exception e) {
-            returnError(apdu, (byte) 0x6F);
-            return;
         }
         
         // Create the actual credential
         switch (cred.getAlgorithm()) {
             case Signature.ALG_ECDSA_SHA_256:
-                tempCred = new StoredES256Credential(cred);
+                try {
+                    tempCred = new StoredES256Credential(cred);
+                } catch (CryptoException e) {
+                    returnError(apdu, (byte) 0x80);
+                    return;
+                } catch (Exception e) {
+                    returnError(apdu, (byte) 0xF0);
+                    return;
+                }
                 break;
             case Signature.ALG_RSA_SHA_256_PKCS1:
                 tempCred = new StoredRS256Credential(cred);
@@ -319,9 +306,14 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
                 return;
             }
-
-            // Add the credential to the resident storage, overwriting if necessary
-            addResident(apdu, tempCred);
+            try {
+                // Add the credential to the resident storage, overwriting if necessary
+                addResident(apdu, tempCred);
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF1);
+                return;
+            }
+            
 
             // Initialise the output buffer, for CBOR writing.
             // output buffer needs 0x00 as first byte as status code
@@ -385,7 +377,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } else {
             // Non-resident credential
             // TODO - we currently force resident credentials
-
+            returnError(apdu, CTAP2_ERR_UNSUPPORTED_OPTION);
         }
 
     }
