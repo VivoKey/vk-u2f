@@ -271,6 +271,27 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            returnError(apdu, (byte) 0x80);
+            return;
+        } catch (ArrayStoreException e) {
+            returnError(apdu, (byte) 0x81);
+            return;
+        } catch (IndexOutOfBoundsException e) {
+            returnError(apdu, (byte) 0x82);
+            return;
+        } catch (NegativeArraySizeException e) {
+            returnError(apdu, (byte) 0x83);
+            return;
+        } catch (NullPointerException e) {
+            returnError(apdu, (byte) 0x84);
+            return;
+        } catch (SecurityException e) {
+            returnError(apdu, (byte) 0x85);
+            return;
+        } catch (RuntimeException e) {
+            returnError(apdu, (byte) 0x86);
+            return;
         } catch (Exception e) {
             returnError(apdu, (byte) 0x6F);
             return;
