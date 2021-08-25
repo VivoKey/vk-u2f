@@ -43,8 +43,9 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
     }
 
     public void setIcon(byte[] src, short len) throws UserException {
-        try {icon = new byte[len];
-            Util.arrayCopy(src, (short) 0, id, (short) 0, len);
+        try {
+            icon = new byte[len];
+            Util.arrayCopy(src, (short) 0, icon, (short) 0, len);
             if (!dataPresent[3]) {
                 dataPresent[3] = true;
                 numData++;
