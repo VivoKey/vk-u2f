@@ -113,7 +113,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public static final byte FIDO2_VENDOR_ATTEST_GETPUB = (byte) 0x44;
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
 
-
     public static final byte FIDO2_DESELECT = 0x12;
 
     // AAGUID - this uniquely identifies the type of authenticator we have built.
@@ -275,7 +274,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             returnError(apdu, e.getReason());
             return;
         }
-        
+
         // Create the actual credential
         switch (cred.getAlgorithm()) {
             case Signature.ALG_ECDSA_SHA_256:
@@ -301,9 +300,15 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
         if (cred.isResident()) {
             // Check if a credential exists on the exclude list
-            if (cred.isExclude() && isPresent(cred.exclude)) {
-                // Throw the error
-                returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
+
+            try {
+                if (cred.isExclude() && isPresent(cred.exclude)) {
+                    // Throw the error
+                    returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
+                    return;
+                }
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF2);
                 return;
             }
             try {
@@ -313,64 +318,82 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, (byte) 0xF1);
                 return;
             }
-            
+            try {
+                // Initialise the output buffer, for CBOR writing.
+                // output buffer needs 0x00 as first byte as status code
+                inBuf[0] = 0x00;
+                cborEncoder.init(inBuf, (short) 1, (short) 1199);
+                // Create a map in the buffer
+                vars[0] = cborEncoder.startMap((short) 3);
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF3);
+                return;
+            }
+            try {
+                // Attestation stuff
+                cborEncoder.writeRawByte((byte) 0x01);
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
 
-            // Initialise the output buffer, for CBOR writing.
-            // output buffer needs 0x00 as first byte as status code
-            inBuf[0] = 0x00;
-            cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            // Create a map in the buffer
-            vars[0] = cborEncoder.startMap((short) 3);
+                // Put the authdata identifier there
+                cborEncoder.writeRawByte((byte) 0x02);
+                // Allocate some space for the byte string
+                vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
+                // Stash where it begins
+                vars[7] = vars[0];
+                // Create the SHA256 hash of the RP ID
+                tempCred.rp.getRp(scratch, (short) 0);
+                vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
+                // Set flags - User presence, user verified, attestation present
+                inBuf[vars[0]++] = (byte) 0x45;
+                // Set the signature counter
+                vars[0] += tempCred.readCounter(inBuf, vars[0]);
+                // Read the credential details in
+                // Just note down where this starts for future ref
+                vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF4);
+                return;
+            }
+            try {
+                // Generate and then attach the attestation
+                cborEncoder.writeRawByte((byte) 0x03);
+                // Start to build into the cbor array manually, to avoid arrayCopy
 
-            // Attestation stuff
-            cborEncoder.writeRawByte((byte) 0x01);
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
+                // Create a map with 3 things
 
-            // Put the authdata identifier there
-            cborEncoder.writeRawByte((byte) 0x02);
-            // Allocate some space for the byte string
-            vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
-            // Stash where it begins
-            vars[7] = vars[0];
-            // Create the SHA256 hash of the RP ID
-            tempCred.rp.getRp(scratch, (short) 0);
-            vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
-            // Set flags - User presence, user verified, attestation present
-            inBuf[vars[0]++] = (byte) 0x45;
-            // Set the signature counter
-            vars[0] += tempCred.readCounter(inBuf, vars[0]);
-            // Read the credential details in
-            // Just note down where this starts for future ref
-            vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
-
-            // Generate and then attach the attestation
-            cborEncoder.writeRawByte((byte) 0x03);
-            // Start to build into the cbor array manually, to avoid arrayCopy
-
-            // Create a map with 3 things
-
-            cborEncoder.startMap((short) 3);
-            // Add the alg label
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
-            // Add the actual algorithm - -7 is 6 as a negative
-            cborEncoder.encodeNegativeUInt8((byte) 0x06);
-            // Add the actual signature, we should generate this
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
-
+                cborEncoder.startMap((short) 3);
+                // Add the alg label
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_ALG, (short) 0, (short) 3);
+                // Add the actual algorithm - -7 is 6 as a negative
+                cborEncoder.encodeNegativeUInt8((byte) 0x06);
+                // Add the actual signature, we should generate this
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_SIG, (short) 0, (short) 3);
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF5);
+                return;
+            }
             // Generate the signature, can't do this directly unfortunately.
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
-            attestation.update(inBuf, vars[7], (short) (tempCred.getAttestedLen() + 37));
-            // The client data hash is next, which we use to finish off the signature.
-            vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
-            // Create the byte string for the signature
-            cborEncoder.encodeByteString(scratch, (short) 0, vars[4]);
-            // Set the x509 cert now
-            cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
-            // Supposedly we need an array here
-            cborEncoder.startArray((short) 1);
-            cborEncoder.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+            try {
+                attestation.update(inBuf, vars[7], (short) (tempCred.getAttestedLen() + 37));
+                // The client data hash is next, which we use to finish off the signature.
+                vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
+                // Create the byte string for the signature
+                cborEncoder.encodeByteString(scratch, (short) 0, vars[4]);
+                // Set the x509 cert now
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_X5C, (short) 0, (short) 3);
+                // Supposedly we need an array here
+                cborEncoder.startArray((short) 1);
+                cborEncoder.encodeByteString(attestation.x509cert, (short) 0, attestation.x509len);
+            } catch (CryptoException e) {
+                returnError(apdu, (byte) 0xF6);
+                return;
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF7);
+                return;
+            }
             // We're actually done, send this out
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
@@ -699,7 +722,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.name.str, (short) 0,
                     assertionCreds[nextAssertion[0]].user.name.len);
         }
-        if(usrFlags[3]) {
+        if (usrFlags[3]) {
             // Has the 'icon' tag
             cborEncoder.encodeTextString(Utf8Strings.UTF8_ICON, (short) 0, (short) 4);
             cborEncoder.encodeTextString(assertionCreds[nextAssertion[0]].user.icon, (short) 0,
@@ -904,10 +927,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 handle(apdu);
                 break;
             case FIDO2_DESELECT:
-                // Appears to be a reset function in the FIDO2 spec, but never referenced anywhere
-                //ISOException.throwIt(ISO7816.SW_NO_ERROR);
-                //break;
-            
+                // Appears to be a reset function in the FIDO2 spec, but never referenced
+                // anywhere
+                // ISOException.throwIt(ISO7816.SW_NO_ERROR);
+                // break;
+
             default:
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         }
@@ -926,8 +950,5 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
 
     }
-
-
-    
 
 }
