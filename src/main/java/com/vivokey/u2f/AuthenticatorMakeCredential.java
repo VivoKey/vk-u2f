@@ -105,6 +105,7 @@ public class AuthenticatorMakeCredential {
                         }
 
                     }
+                    break;
                 case (short) 3:
 
                     // UserEntity, create
@@ -247,6 +248,7 @@ public class AuthenticatorMakeCredential {
                         decoder.skipEntry();
                         decoder.skipEntry();
                     }
+                    break;
                 case (short) 6:
                 default:
                     // Skip it transparently
