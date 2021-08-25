@@ -16,6 +16,7 @@
 */
 package com.vivokey.u2f;
 
+import javacard.framework.UserException;
 import javacard.framework.Util;
 
 public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
@@ -41,13 +42,18 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
         }
     }
 
-    public void setIcon(byte[] src, short len) {
-        icon = new byte[len];
-        Util.arrayCopy(src, (short) 0, id, (short) 0, len);
-        if (!dataPresent[3]) {
-            dataPresent[3] = true;
-            numData++;
+    public void setIcon(byte[] src, short len) throws UserException {
+        try {icon = new byte[len];
+            Util.arrayCopy(src, (short) 0, id, (short) 0, len);
+            if (!dataPresent[3]) {
+                dataPresent[3] = true;
+                numData++;
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+            UserException.throwIt((byte) 0xFA);
         }
+        
+        
     }
 
     public void setDisplayName(byte[] src, short len) {
