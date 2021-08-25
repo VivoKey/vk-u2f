@@ -266,14 +266,19 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
     public void authMakeCredential(APDU apdu, short bufLen) {
         // Init the decoder
-        cborDecoder.init(inBuf, (short) 1, bufLen);
+        try {
+            cborDecoder.init(inBuf, (short) 1, bufLen);
+        } catch (Exception e) {
+            returnError(apdu, (byte) 0x70);
+            return;
+        }
         // create a credential object
         try {
             cred = new AuthenticatorMakeCredential(cborDecoder);
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
-        } catch (Exception e)  {
+        } catch (Exception e) {
             returnError(apdu, (byte) 0x6F);
             return;
         }
@@ -397,14 +402,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, (byte) 0xF7);
                 return;
             }
-            try {
-                // We're actually done, send this out
-                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0xF8);
-                return;
-            }
-
+            // We're actually done, send this out
+            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
 
         } else {
             // Non-resident credential
@@ -939,8 +938,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
             case FIDO2_DESELECT:
                 // Appears to be a reset function in the FIDO2 spec, but never referenced
                 // anywhere
-                // ISOException.throwIt(ISO7816.SW_NO_ERROR);
-                // break;
+                ISOException.throwIt(ISO7816.SW_NO_ERROR);
+                break;
 
             default:
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
