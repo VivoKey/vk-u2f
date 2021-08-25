@@ -881,8 +881,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             case FIDO2_DESELECT:
                 // Appears to be a reset function in the FIDO2 spec, but never referenced anywhere
-                ISOException.throwIt(ISO7816.SW_NO_ERROR);
-                break;
+                //ISOException.throwIt(ISO7816.SW_NO_ERROR);
+                //break;
             
             default:
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
