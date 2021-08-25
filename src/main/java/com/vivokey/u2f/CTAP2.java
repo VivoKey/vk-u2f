@@ -393,7 +393,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
         // Create the authenticatorData to sign
         sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-        scratch[32] = 0x05;
+        if(assertion.options[1]) {
+            scratch[32] = 0x05;
+        } else {
+            scratch[32] = 0x01;
+        }
+        
         assertionCreds[0].readCounter(scratch, (short) 33);
         // Copy the hash in
         assertion.getHash(scratch, (short) 37);
@@ -427,7 +432,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
         if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-            scratch[32] = 0x05;
+            if(assertion.options[1]) {
+                scratch[32] = 0x05;
+            } else {
+                scratch[32] = 0x01;
+            }
             assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
             // Copy the hash in
             assertion.getHash(scratch, (short) 37);
