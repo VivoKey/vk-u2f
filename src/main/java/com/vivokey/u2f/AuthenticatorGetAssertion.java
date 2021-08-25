@@ -88,7 +88,7 @@ public class AuthenticatorGetAssertion {
                                 // It doesn't matter what it is, just check it's string and exists.
                             } else {
                                 // If it's not these two, throw an error
-                                UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                                 break;
                             }
                         }
@@ -114,14 +114,18 @@ public class AuthenticatorGetAssertion {
                 case 0x04:
                     // Extensions - we mostly ignore
                     decoder.skipEntry();
+                    break;
                 case 0x06:
                     // Pin stuff
                     decoder.skipEntry();
+                    break;
                 case 0x07:
                     // Pin protocol
                     decoder.skipEntry();
+                    break;
                 default:
                     UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                    break;
             }
 
         }
