@@ -16,7 +16,7 @@ public class CTAP2Exception extends CardException {
 
 
     /**
-     * Constructs a <code>UserException</code> with the specified reason. To
+     * Constructs a <code>CTAP2Exception</code> with the specified reason. To
      * conserve on resources use <code>throwIt()</code> to use the Java Card
      * runtime environment-owned instance of this class.
      * 

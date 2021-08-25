@@ -20,6 +20,7 @@ package com.vivokey.u2f;
 
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
+import javacard.framework.UserException;
 import javacard.framework.Util;
 
 public class CBORDecoder extends CBORBase {
@@ -98,9 +99,9 @@ public class CBORDecoder extends CBORBase {
      * @param majorType The expected major type
      * @return The length in the addition information field
      */
-    public short readMajorType(byte majorType) throws CTAP2Exception {
+    public short readMajorType(byte majorType) throws UserException {
         if (majorType != getMajorType()) {
-            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
             return 0;
         }
         return readLength();
@@ -221,9 +222,9 @@ public class CBORDecoder extends CBORBase {
      * @return Number of bytes copied into the buffer
  * @throws CTAP2Exception
      */
-    public short readTextString(byte[] outBuffer, short outOffset) throws CTAP2Exception {
+    public short readTextString(byte[] outBuffer, short outOffset) throws UserException {
         if(getMajorType() != TYPE_TEXT_STRING) {
-            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
         }
         short length = readLength();
         return readRawByteArray(outBuffer, outOffset, length);

@@ -17,6 +17,7 @@
 package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
+import javacard.framework.UserException;
 import javacard.framework.Util;
 
 public class AuthenticatorMakeCredential {
@@ -34,7 +35,7 @@ public class AuthenticatorMakeCredential {
      * @param decoder the initialised decoder on the CBOR structure
      * @param vars    a short array to store variables in
      */
-    public AuthenticatorMakeCredential(CBORDecoder decoder) throws CTAP2Exception {
+    public AuthenticatorMakeCredential(CBORDecoder decoder) throws UserException {
         short[] vars;
         try {
             vars = JCSystem.makeTransientShortArray((short) 8, JCSystem.CLEAR_ON_RESET);
@@ -80,7 +81,7 @@ public class AuthenticatorMakeCredential {
                     vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     // If less than 2, error
                     if (vars[7] < (short) 2) {
-                        CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                        UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                     }
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
@@ -222,7 +223,7 @@ public class AuthenticatorMakeCredential {
                         // Read the map. It has 2 things in it.
                         vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
                         if (vars[1] != 2) {
-                            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                            UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
                         // Read the id - it must be first
                         decoder.skipEntry();

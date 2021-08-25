@@ -22,6 +22,7 @@ import javacard.framework.Applet;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
+import javacard.framework.UserException;
 import javacard.framework.Util;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
@@ -267,7 +268,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // create a credential object
         try {
             cred = new AuthenticatorMakeCredential(cborDecoder);
-        } catch (CTAP2Exception e) {
+        } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
         }
@@ -371,7 +372,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborDecoder.init(inBuf, (short) 1, bufLen);
         try {
             assertion = new AuthenticatorGetAssertion(cborDecoder);
-        } catch (CTAP2Exception e) {
+        } catch (UserException e) {
             returnError(apdu, e.getReason());
         }
         // Match the assertion to the credential
