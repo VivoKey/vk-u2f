@@ -394,8 +394,14 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, (byte) 0xF7);
                 return;
             }
-            // We're actually done, send this out
-            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
+            try {
+                // We're actually done, send this out
+                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0xF8);
+                return;
+            }
+
 
         } else {
             // Non-resident credential
@@ -413,6 +419,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             assertion = new AuthenticatorGetAssertion(cborDecoder);
         } catch (UserException e) {
             returnError(apdu, e.getReason());
+            return;
         }
         // Match the assertion to the credential
         // Get a list of matching credentials
