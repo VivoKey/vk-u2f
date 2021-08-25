@@ -152,7 +152,7 @@ public class AuthenticatorMakeCredential {
                             decoder.skipEntry();
                         }
                     } catch (ArrayIndexOutOfBoundsException e) {
-                        UserException.throwIt((byte) 0x90);
+                        UserException.throwIt((byte) (0x40 | vars[0]));
                         break;
                     }
 
