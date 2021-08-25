@@ -253,6 +253,10 @@ public class AuthenticatorMakeCredential {
 
                             decoder.readBoolean();
                         }
+                        else {
+                            // Skip it
+                            decoder.skipEntry();
+                        }
                     }
                     break;
                 
