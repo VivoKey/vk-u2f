@@ -218,13 +218,20 @@ public class AuthenticatorMakeCredential {
                         if (vars[1] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
-                        // Read the id - it must be first
-                        decoder.skipEntry();
-                        // Read the actual id
-                        vars[1] = decoder.readByteString(scratch1, (short) 0);
-                        exclude[vars[0]] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, vars[1]);
-                        decoder.skipEntry();
-                        decoder.skipEntry();
+                        // Parse it, properly
+                        for(vars[7] = 0; vars[7] < vars[1]; vars[7]++) {
+                            vars[3] = decoder.readTextString(scratch1, (short) 0);
+                            if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                                // Read the actual id
+                                vars[1] = decoder.readByteString(scratch1, (short) 0);
+                                exclude[vars[0]] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, vars[1]);
+                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                                // Read the type
+                                vars[1] = decoder.readTextString(scratch2, (short) 0);
+                                // It doesn't matter, we should just silently accept
+                            }
+                        }
+
                     }
                     break;
                 case (short) 7:
