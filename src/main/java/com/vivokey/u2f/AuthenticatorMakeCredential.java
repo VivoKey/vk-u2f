@@ -246,14 +246,17 @@ public class AuthenticatorMakeCredential {
                                 (short) 2) == (short) 0) {
                             // Is the user validation bit
                             options[1] = decoder.readBoolean();
-                        }
+                        } else 
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
                                 (short) 2) == (short) 0) {
                             // Is the resident key bit
 
                             decoder.readBoolean();
-                        }
-                        else {
+                        } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == (short) 0) {
+                            // Error out
+                            UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_OPTION);
+                            
+                        } else {
                             // Skip it
                             decoder.skipEntry();
                         }
