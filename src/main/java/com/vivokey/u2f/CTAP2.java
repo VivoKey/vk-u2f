@@ -271,6 +271,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
+        } catch (Exception e) {
+            returnError(apdu, (byte) 0x6F);
         }
         
         // Create the actual credential
@@ -286,7 +288,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 break;
             default:
                 returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                break;
+                return;
         }
         if (cred.isResident()) {
             // Check if a credential exists on the exclude list
