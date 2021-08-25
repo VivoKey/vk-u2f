@@ -62,7 +62,6 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
         return (Util.arrayCompare(src, off, id, (short) 0, len) == 0);
     }
 
-    @Override
     public void setName(byte[] pkName, short len) {
         name = new DomString(pkName, len);
         if (!dataPresent[0]) {

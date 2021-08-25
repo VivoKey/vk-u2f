@@ -39,7 +39,7 @@ public class StoredES256Credential extends StoredCredential {
     }
 
 
-    @Override
+
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         // Performs the signature as per ES256
         incrementCounter();
@@ -47,14 +47,14 @@ public class StoredES256Credential extends StoredCredential {
 
     }
 
-    @Override
+
     public short getAttestedLen() {
         // AAGUID (16), 0010 (2), Credential ID (16), the map (1 byte header, 6 bytes
         // keytype and curve type, 35 bytes x, 35 bytes y, 77 total)
         return (short) 111;
     }
 
-    @Override
+
     public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
         // Get the ECPublicKey

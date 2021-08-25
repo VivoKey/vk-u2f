@@ -112,6 +112,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
     public static final byte FIDO2_VENDOR_ATTEST_GETCERT = (byte) 0x4A;
 
 
+    public static final byte FIDO2_DESELECT = 0x12;
+
     // AAGUID - this uniquely identifies the type of authenticator we have built.
     // If you're reusing this code, please generate your own GUID and put it here -
     // this is unique to manufacturer and device model.
@@ -263,7 +265,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Init the decoder
         cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
-        cred = new AuthenticatorMakeCredential(cborDecoder);
+        try {
+            cred = new AuthenticatorMakeCredential(cborDecoder);
+        } catch (CTAP2Exception e) {
+            returnError(apdu, e.getReason());
+        }
+        
         // Create the actual credential
         switch (cred.getAlgorithm()) {
             case Signature.ALG_ECDSA_SHA_256:
@@ -363,12 +370,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborDecoder.init(inBuf, (short) 1, bufLen);
         try {
             assertion = new AuthenticatorGetAssertion(cborDecoder);
-        } catch (ISOException e) {
-            byte[] buffer = apdu.getBuffer();
-            buffer[0] = CTAP2_ERR_INVALID_CBOR;
-            Util.setShort(buffer, (short) 1, e.getReason());
-            apdu.setOutgoingAndSend((short) 0, (short) 3);
-            return;
+        } catch (Exception e) {
+            returnError(apdu, CTAP2_ERR_INVALID_CBOR);
         }
         // Match the assertion to the credential
         // Get a list of matching credentials
@@ -542,6 +545,21 @@ public class CTAP2 extends Applet implements ExtendedLength {
         byte[] buffer = apdu.getBuffer();
         buffer[0] = err;
         apdu.setOutgoingAndSend((short) 0, (short) 1);
+    }
+
+    /**
+     * Return an error via APDU - an error on the FIDO2 side is considered a success
+     * in APDU-land so we send a response.
+     * 
+     * @param apdu   shared APDU object
+     * @param buffer APDU buffer
+     * @param err    error code
+     */
+    public void returnError(APDU apdu, short err) {
+        byte[] buffer = apdu.getBuffer();
+        // Get the low byte of the error.
+        Util.setShort(buffer, (short) 0, err);
+        apdu.setOutgoingAndSend((short) 1, (short) 1);
     }
 
     /**
@@ -838,7 +856,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
         sendLongChaining(apdu, vars[0]);
     }
 
-    @Override
     public void process(APDU apdu) throws ISOException {
         byte[] buffer = apdu.getBuffer();
         if (selectingApplet()) {
@@ -862,6 +879,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
             case FIDO2_INS_NFCCTAP_MSG:
                 handle(apdu);
                 break;
+            case FIDO2_DESELECT:
+                // Appears to be a reset function in the FIDO2 spec, but never referenced anywhere
+                ISOException.throwIt(ISO7816.SW_NO_ERROR);
+                break;
+            
             default:
                 ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         }

@@ -16,7 +16,6 @@
 */
 package com.vivokey.u2f;
 
-import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
@@ -26,7 +25,7 @@ public class AuthenticatorGetAssertion {
     boolean[] options;
     PublicKeyCredentialDescriptor[] allow;
 
-    public AuthenticatorGetAssertion(CBORDecoder decoder) {
+    public AuthenticatorGetAssertion(CBORDecoder decoder) throws CTAP2Exception {
 
         short[] vars;
         try {
@@ -73,7 +72,7 @@ public class AuthenticatorGetAssertion {
                         // Read the map. It has 2 things in it.
                         vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
                         if(vars[1] != 2) {
-                            ISOException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
                         // Read the id - it must be first
                         decoder.skipEntry();
@@ -90,7 +89,7 @@ public class AuthenticatorGetAssertion {
                     vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
                         // Read the text string
-                        decoder.readByteString(scratch, (short) 0);
+                        decoder.readTextString(scratch, (short) 0);
                         if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
                             // Is the UP param
                             options[0] = decoder.readBoolean();
@@ -107,13 +106,13 @@ public class AuthenticatorGetAssertion {
                 case 0x07:
                     // Pin protocol
                 default:
-                    ISOException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                    CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
             }
 
         }
         // We should check we have our "mandatory" options
         if(rpId == null || clientDataHash == null) {
-            ISOException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
+            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
         }
         // Good to go I guess
 

@@ -36,7 +36,6 @@ public class StoredPS256Credential extends StoredCredential {
 
 
 
-    @Override
     public short performSignature(byte[] inBuf, short inOff, short inLen, byte[] outBuf, short outOff) {
         incrementCounter();
         // Increment sig counter first
@@ -44,14 +43,12 @@ public class StoredPS256Credential extends StoredCredential {
 
     }
 
-    @Override
     public short getAttestedLen() {
         // AAGUID (16), 0010 (2), Credential ID (16), map (1 byte header + 5 bytes type
         // and alg + 260 bytes mod inc header, 5 bytes exp inc header)
         return (short) 305;
     }
 
-    @Override
     public short getAttestedData(byte[] buf, short off) {
         CBOREncoder enc = new CBOREncoder();
 
