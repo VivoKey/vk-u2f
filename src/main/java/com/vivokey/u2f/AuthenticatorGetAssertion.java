@@ -74,8 +74,9 @@ public class AuthenticatorGetAssertion {
                         vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
                         if(vars[1] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                            break;
                         }
-                        for(vars[7] = 0; vars[7] < vars[1]; vars[7]++) {
+                        for(vars[6] = 0; vars[6] < vars[1]; vars[6]++) {
                             vars[3] = decoder.readTextString(scratch, (short) 0);
                             if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
                                 // Read the actual id
@@ -83,11 +84,7 @@ public class AuthenticatorGetAssertion {
                                 allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[1]);
                             } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
                                 // Read the type field, it must be text
-                                if(decoder.getMajorType() != CBORBase.TYPE_TEXT_STRING) {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
-                                    break;
-                                }
-                                decoder.skipEntry();
+                                decoder.readTextString(scratch, (short) 0);
                                 // It doesn't matter what it is, just check it's string and exists.
                             } else {
                                 // If it's not these two, throw an error
@@ -109,6 +106,8 @@ public class AuthenticatorGetAssertion {
                         } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == 0) {
                             // Is the UV param
                             options[1] = decoder.readBoolean();
+                        } else {
+                            decoder.skipEntry();
                         }
                     }
                     break;
