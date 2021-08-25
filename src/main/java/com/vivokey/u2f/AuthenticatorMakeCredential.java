@@ -112,10 +112,11 @@ public class AuthenticatorMakeCredential {
                     user = new PublicKeyCredentialUserEntity();
                     // Read the map length
                     vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-
+                   
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-                        // Read the text string in
+                        try {
+                            // Read the text string in
                         vars[1] = decoder.readTextString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
@@ -150,6 +151,10 @@ public class AuthenticatorMakeCredential {
                             // Is optional, so we need to skip the value
                             decoder.skipEntry();
                         }
+                    } catch (ArrayIndexOutOfBoundsException e) {
+                        UserException.throwIt(decoder.getCurrentOffset());
+                        break;
+                    }
 
                     }
                     break;
