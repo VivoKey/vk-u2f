@@ -80,8 +80,8 @@ public class AuthenticatorGetAssertion {
                             vars[3] = decoder.readTextString(scratch, (short) 0);
                             if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
                                 // Read the actual id
-                                vars[1] = decoder.readByteString(scratch, (short) 0);
-                                allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[1]);
+                                vars[2] = decoder.readByteString(scratch, (short) 0);
+                                allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[2]);
                             } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
                                 // Read the type field, it must be text
                                 decoder.readTextString(scratch, (short) 0);
