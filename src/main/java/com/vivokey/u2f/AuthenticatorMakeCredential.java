@@ -112,11 +112,10 @@ public class AuthenticatorMakeCredential {
                     user = new PublicKeyCredentialUserEntity();
                     // Read the map length
                     vars[7] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                   
+
                     // Read the map iteratively
                     for (vars[0] = 0; vars[0] < vars[7]; vars[0]++) {
-                        try {
-                            // Read the text string in
+                        // Read the text string in
                         vars[1] = decoder.readTextString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
@@ -143,26 +142,17 @@ public class AuthenticatorMakeCredential {
                             user.setDisplayName(scratch1, vars[1]);
                         } else
                         // If icon, even
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
-                            try {
-                                // Read the string into scratch
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0,
+                                (short) 4) == (byte) 0) {
+
+                            // Read the string into scratch
                             vars[6] = decoder.readTextString(scratch2, (short) 0);
                             user.setIcon(scratch2, vars[6]);
-                            } catch (ArrayIndexOutOfBoundsException e) {
-                                UserException.throwIt((byte) 0xF0);
-                                break;
-                            } catch (UserException e) {
-                                UserException.throwIt(e.getReason());
-                                break;
-                            }
-                        } else  {
+
+                        } else {
                             // Is optional, so we need to skip the value
                             decoder.skipEntry();
                         }
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        UserException.throwIt((byte) 0x40);
-                        break;
-                    }
 
                     }
                     break;
@@ -175,7 +165,7 @@ public class AuthenticatorMakeCredential {
                     for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
                         // Read the map length - should be 2
                         vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        if(vars[2] != 2) {
+                        if (vars[2] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
                         // Iterate over the map
@@ -205,11 +195,13 @@ public class AuthenticatorMakeCredential {
                                     }
                                 }
 
-                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0,
+                                    (short) 4) == (byte) 0) {
                                 // Public key type
                                 // Check it
                                 vars[4] = decoder.readTextString(scratch1, (short) 0);
-                                if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10) != (byte) 0) {
+                                if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0,
+                                        (short) 10) != (byte) 0) {
                                     UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                                 }
                             } else {
@@ -262,7 +254,7 @@ public class AuthenticatorMakeCredential {
                         }
                     }
                     break;
-                
+
                 case (short) 6:
                 default:
                     // Skip it transparently

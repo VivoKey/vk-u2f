@@ -16,13 +16,13 @@
 */
 package com.vivokey.u2f;
 
-import javacard.framework.UserException;
 import javacard.framework.Util;
 
 public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
     public byte[] id;
     public DomString displayName;
-    // 4-bit. 0 is the parent name, 1 is the id, 2 is the displayName and 3 is the icon.
+    // 4-bit. 0 is the parent name, 1 is the id, 2 is the displayName and 3 is the
+    // icon.
     public boolean[] dataPresent;
     public byte numData;
 
@@ -42,18 +42,14 @@ public class PublicKeyCredentialUserEntity extends PublicKeyCredentialEntity {
         }
     }
 
-    public void setIcon(byte[] src, short len) throws UserException {
-        try {icon = new byte[len];
-            Util.arrayCopy(src, (short) 0, id, (short) 0, len);
-            if (!dataPresent[3]) {
-                dataPresent[3] = true;
-                numData++;
-            }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            UserException.throwIt((byte) 0xFA);
+    public void setIcon(byte[] src, short len) {
+        icon = new byte[len];
+        Util.arrayCopy(src, (short) 0, icon, (short) 0, len);
+        if (!dataPresent[3]) {
+            dataPresent[3] = true;
+            numData++;
         }
-        
-        
+
     }
 
     public void setDisplayName(byte[] src, short len) {
