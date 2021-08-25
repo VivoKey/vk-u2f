@@ -93,7 +93,7 @@ public class AuthenticatorMakeCredential {
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
                                 (short) 2) == (byte) 0) {
                             // It does, so read its length
-                            vars[1] = decoder.readTextString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             rp.setRp(scratch1, vars[1]);
                         } else
@@ -122,7 +122,7 @@ public class AuthenticatorMakeCredential {
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
                                 (short) 2) == (byte) 0) {
                             // Read the string into scratch
-                            vars[1] = decoder.readTextString(scratch1, (short) 0);
+                            vars[1] = decoder.readByteString(scratch1, (short) 0);
                             // Set it
                             user.setId(scratch1, (short) 0, vars[1]);
                         } else
