@@ -124,7 +124,7 @@ public class AuthenticatorGetAssertion {
                     decoder.skipEntry();
                     break;
                 default:
-                    UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                    UserException.throwIt((byte) 0x85);
                     break;
             }
 

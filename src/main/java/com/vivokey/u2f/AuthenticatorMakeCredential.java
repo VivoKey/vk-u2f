@@ -229,7 +229,7 @@ public class AuthenticatorMakeCredential {
                                 // It doesn't matter what it is, just check it's string and exists.
                             } else {
                                 // If it's not these two, throw an error
-                                UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                UserException.throwIt((byte) 0x80);
                                 break;
                             }
                         }
@@ -241,7 +241,7 @@ public class AuthenticatorMakeCredential {
                     // Parse the two rk and uv objects
                     // Read the map
                     if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                        UserException.throwIt((byte) 0x81);
                         break;
                     }
                     vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
