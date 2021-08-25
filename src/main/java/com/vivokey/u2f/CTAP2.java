@@ -142,7 +142,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         discoverableCreds = new CredentialArray((short) 20);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
-        nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
+        nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_RESET);
         persoComplete = false;
         isChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
         chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
