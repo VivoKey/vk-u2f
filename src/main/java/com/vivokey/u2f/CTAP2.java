@@ -269,6 +269,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             cred = new AuthenticatorMakeCredential(cborDecoder);
         } catch (CTAP2Exception e) {
             returnError(apdu, e.getReason());
+            return;
         }
         
         // Create the actual credential
@@ -291,9 +292,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
             if (cred.isExclude() && isPresent(cred.exclude)) {
                 // Throw the error
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
+                return;
             }
 
-            APDU.waitExtension();
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, tempCred);
 
@@ -370,8 +371,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborDecoder.init(inBuf, (short) 1, bufLen);
         try {
             assertion = new AuthenticatorGetAssertion(cborDecoder);
-        } catch (Exception e) {
-            returnError(apdu, CTAP2_ERR_INVALID_CBOR);
+        } catch (CTAP2Exception e) {
+            returnError(apdu, e.getReason());
         }
         // Match the assertion to the credential
         // Get a list of matching credentials
