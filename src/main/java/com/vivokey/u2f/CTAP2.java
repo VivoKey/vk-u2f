@@ -139,7 +139,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
         cborEncoder = new CBOREncoder();
-        discoverableCreds = new CredentialArray((short) 4);
+        discoverableCreds = new CredentialArray((short) 20);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
         nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_DESELECT);
@@ -269,12 +269,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
     public void authMakeCredential(APDU apdu, short bufLen) {
         // Init the decoder
-        try {
-            cborDecoder.init(inBuf, (short) 1, bufLen);
-        } catch (Exception e) {
-            returnError(apdu, (byte) 0x70);
-            return;
-        }
+        cborDecoder.init(inBuf, (short) 1, bufLen);
         // create a credential object
         try {
             cred = new AuthenticatorMakeCredential(cborDecoder);
