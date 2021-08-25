@@ -91,7 +91,7 @@ public class AuthenticatorMakeCredential {
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
                                 (short) 2) == (byte) 0) {
                             // It does, so read its length
-                            vars[1] = decoder.readByteString(scratch1, (short) 0);
+                            vars[1] = decoder.readTextString(scratch1, (short) 0);
                             // Set it
                             rp.setRp(scratch1, vars[1]);
                         } else
@@ -140,6 +140,7 @@ public class AuthenticatorMakeCredential {
                             // Set it
                             user.setDisplayName(scratch1, vars[1]);
                         } else
+                        // If icon, even
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
                             // Read the string into scratch
                             vars[1] = decoder.readTextString(scratch1, (short) 0);
@@ -160,6 +161,9 @@ public class AuthenticatorMakeCredential {
                     for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
                         // Read the map length - should be 2
                         vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        if(vars[2] != 2) {
+                            UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                        }
                         // Iterate over the map
                         for (vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
                             vars[4] = decoder.readTextString(scratch1, (short) 0);
@@ -192,7 +196,7 @@ public class AuthenticatorMakeCredential {
                                 // Check it
                                 vars[4] = decoder.readTextString(scratch1, (short) 0);
                                 if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10) != (byte) 0) {
-                                    UserException.throwIt(CTAP2.CTAP1_ERR_INVALID_PARAMETER);
+                                    UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                                 }
                             } else {
                                 UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
@@ -245,6 +249,8 @@ public class AuthenticatorMakeCredential {
                     }
                 case (short) 6:
                 default:
+                    // Skip it transparently
+                    decoder.skipEntry();
                     break;
 
             }
