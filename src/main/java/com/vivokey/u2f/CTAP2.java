@@ -273,6 +273,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
+        } catch (Exception e)  {
+            returnError(apdu, (byte) 0x6F);
+            return;
         }
 
         // Create the actual credential
