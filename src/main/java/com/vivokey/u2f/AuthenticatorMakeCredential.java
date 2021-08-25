@@ -149,7 +149,7 @@ public class AuthenticatorMakeCredential {
                             vars[6] = decoder.readTextString(scratch2, (short) 0);
                             user.setIcon(scratch2, vars[6]);
                             } catch (ArrayIndexOutOfBoundsException e) {
-                                UserException.throwIt((byte) (0x10 | vars[6]));
+                                UserException.throwIt((byte) (vars[6]));
                                 break;
                             }
                         } else  {
@@ -157,7 +157,7 @@ public class AuthenticatorMakeCredential {
                             decoder.skipEntry();
                         }
                     } catch (ArrayIndexOutOfBoundsException e) {
-                        UserException.throwIt((byte) (0x40 | vars[0]));
+                        UserException.throwIt((byte) 0x40);
                         break;
                     }
 
