@@ -269,11 +269,12 @@ public class AuthenticatorMakeCredential {
                     break;
 
             }
-            // Check we've got stuff like the clientDataHash
-            if(dataHash == null || dataHash.length == (byte) 0 || rp == null || user == null || params == null) {
-                UserException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
-            }
+            
 
+        }
+        // Check we've got stuff like the clientDataHash
+        if(dataHash == null || rp == null || user == null || params == null) {
+            UserException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
         }
 
         // We're done, I guess
