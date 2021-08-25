@@ -57,7 +57,7 @@ public class CBORDecoder extends CBORBase {
      * 
      * @return The offset value after the skipped entry
      */
-    public short skipEntry() throws CTAP2Exception {
+    public short skipEntry(){
         short mapentries = 1;
         switch (getMajorType()) {
             case TYPE_UNSIGNED_INTEGER:
@@ -113,14 +113,14 @@ public class CBORDecoder extends CBORBase {
      * 
      * @return The current 8bit Integer
      */
-    public byte readInt8() throws CTAP2Exception {
+    public byte readInt8(){
         final byte eventlength = (byte) (readRawByte() & ADDINFO_MASK);
         if (eventlength < ENCODED_ONE_BYTE) {
             return eventlength;
         } else if (eventlength == ENCODED_ONE_BYTE) {
             return (byte) (readRawByte() & 0xff);
         } else {
-            CTAP2Exception.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
         }
         return 0; // Never reached
     }
@@ -160,7 +160,7 @@ public class CBORDecoder extends CBORBase {
         }
     }
 
-    public short readEncodedInteger(byte[] output, short offset) throws CTAP2Exception {
+    public short readEncodedInteger(byte[] output, short offset) {
         final byte size = getIntegerSize();
         if (size == 1) { // Check for special case (integer could be encoded in first type)
             output[offset] = readInt8();
@@ -170,7 +170,7 @@ public class CBORDecoder extends CBORBase {
         return (short) (size & 0xFF);
     }
 
-    public short readLength() throws CTAP2Exception {
+    public short readLength() {
         final byte size = getIntegerSize(); // Read length information
         short length = 0;
         if (size == 1) {
@@ -207,7 +207,7 @@ public class CBORDecoder extends CBORBase {
      * @param outOffset Offset location within the buffer
      * @return Number of bytes copied into the buffer
      */
-    public short readByteString(byte[] outBuffer, short outOffset) throws CTAP2Exception {
+    public short readByteString(byte[] outBuffer, short outOffset) {
         short length = readLength();
         return readRawByteArray(outBuffer, outOffset, length);
     }
