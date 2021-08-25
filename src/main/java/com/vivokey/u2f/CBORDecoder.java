@@ -202,13 +202,17 @@ public class CBORDecoder extends CBORBase {
 
     /**
      * Read a byte string at the current location and copy it into the given buffer
-     * (offset will be increased).
+     * (offset will be increased). Throws an error if it's the wrong type.
      * 
      * @param outBuffer Buffer where the array should be copied to
      * @param outOffset Offset location within the buffer
      * @return Number of bytes copied into the buffer
      */
-    public short readByteString(byte[] outBuffer, short outOffset) {
+    public short readByteString(byte[] outBuffer, short outOffset) throws UserException {
+        if(getMajorType() != TYPE_BYTE_STRING) {
+            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            return 0;
+        }
         short length = readLength();
         return readRawByteArray(outBuffer, outOffset, length);
     }
