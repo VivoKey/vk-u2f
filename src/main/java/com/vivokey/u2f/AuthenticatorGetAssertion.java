@@ -48,40 +48,40 @@ public class AuthenticatorGetAssertion {
         } catch (Exception e) {
             scratch = new byte[64];
         }
-        for(vars[7] = 0; vars[7] < vars[0]; vars[7]++ ) {
-            vars[1] = decoder.readInt8();
-            switch(vars[1]) {
+        for(vars[1] = 0; vars[1] < vars[0]; vars[1]++ ) {
+            vars[2] = decoder.readInt8();
+            switch(vars[2]) {
                 case 0x01:
                     // RpId
-                    vars[2] = decoder.readTextString(scratch, (short) 0);
-                    rpId = new byte[vars[2]];
+                    vars[3] = decoder.readTextString(scratch, (short) 0);
+                    rpId = new byte[vars[3]];
                     // Copy to it
-                    Util.arrayCopy(scratch, (short) 0, rpId, (short) 0, vars[2]);
+                    Util.arrayCopy(scratch, (short) 0, rpId, (short) 0, vars[3]);
                     break;
                 case 0x02:
                     // clientDataHash
-                    vars[2] = decoder.readByteString(scratch, (short) 0);
-                    clientDataHash = new byte[vars[2]];
-                    Util.arrayCopy(scratch, (short) 0, clientDataHash, (short) 0, vars[2]);
+                    vars[3] = decoder.readByteString(scratch, (short) 0);
+                    clientDataHash = new byte[vars[3]];
+                    Util.arrayCopy(scratch, (short) 0, clientDataHash, (short) 0, vars[3]);
                     break;
                 case 0x03:
                     // allowList
                     // Read the array
-                    vars[2] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
-                    allow = new PublicKeyCredentialDescriptor[vars[2]];
-                    for(vars[0] = 0; vars[0] < vars[2]; vars[0]++) {
+                    vars[3] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
+                    allow = new PublicKeyCredentialDescriptor[vars[3]];
+                    for(vars[4] = 0; vars[4] < (short) allow.length; vars[4]++) {
                         // Read the map. It has 2 things in it.
-                        vars[1] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        if(vars[1] != 2) {
+                        vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        if(vars[3] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                             break;
                         }
-                        for(vars[6] = 0; vars[6] < vars[1]; vars[6]++) {
+                        for(vars[5] = 0; vars[5] < (short) 2; vars[5]++) {
                             vars[3] = decoder.readTextString(scratch, (short) 0);
                             if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
                                 // Read the actual id
-                                vars[2] = decoder.readByteString(scratch, (short) 0);
-                                allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[2]);
+                                vars[3] = decoder.readByteString(scratch, (short) 0);
+                                allow[vars[4]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[3]);
                             } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
                                 // Read the type field, it must be text
                                 decoder.readTextString(scratch, (short) 0);
@@ -96,8 +96,8 @@ public class AuthenticatorGetAssertion {
                     break;
                 case 0x05:
                     // Options - two important things here
-                    vars[2] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    for(vars[3] = 0; vars[3] < vars[2]; vars[3]++) {
+                    vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    for(vars[4] = 0; vars[4] < vars[3]; vars[4]++) {
                         // Read the text string
                         decoder.readTextString(scratch, (short) 0);
                         if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
