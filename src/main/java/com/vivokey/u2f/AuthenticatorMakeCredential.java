@@ -146,10 +146,10 @@ public class AuthenticatorMakeCredential {
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
                             try {
                                 // Read the string into scratch
-                            vars[1] = decoder.readTextString(scratch2, (short) 0);
-                            user.setIcon(scratch2, vars[1]);
+                            vars[6] = decoder.readTextString(scratch2, (short) 0);
+                            user.setIcon(scratch2, vars[6]);
                             } catch (ArrayIndexOutOfBoundsException e) {
-                                UserException.throwIt((byte) (0x20 | vars[1]));
+                                UserException.throwIt((byte) (0x10 | vars[6]));
                                 break;
                             }
                         } else  {
