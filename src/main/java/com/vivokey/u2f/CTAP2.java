@@ -437,7 +437,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
             inBuf[0] = 0x00;
             // Create the encoder
             cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            doAssertionCommon(cborEncoder, (short) 4);
+            if(nextAssertion[0]+1 != assertionCreds.length) {
+                doAssertionCommon(cborEncoder, (short) 5);
+            } else {
+                doAssertionCommon(cborEncoder, (short) 4);
+            }
+            
 
             nextAssertion[0]++;
             // Emit this as a response
@@ -710,7 +715,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Done tag 4
         if (mapLen == 5) {
             cborEncoder.encodeUInt8((byte) 0x05);
-            cborEncoder.encodeUInt8((byte) assertionCreds.length);
+            cborEncoder.encodeUInt8((byte) (assertionCreds.length - nextAssertion[0]));
         }
 
     }
