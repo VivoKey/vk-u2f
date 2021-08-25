@@ -75,14 +75,26 @@ public class AuthenticatorGetAssertion {
                         if(vars[1] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
-                        // Read the id - it must be first
-                        decoder.skipEntry();
-                        // Read the actual id
-                        vars[1] = decoder.readByteString(scratch, (short) 0);
-                        allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[1]);
-                        // Skip the next two entries (pubkey type)
-                        decoder.skipEntry();
-                        decoder.skipEntry();
+                        for(vars[7] = 0; vars[7] < vars[1]; vars[7]++) {
+                            vars[3] = decoder.readTextString(scratch, (short) 0);
+                            if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                                // Read the actual id
+                                vars[1] = decoder.readByteString(scratch, (short) 0);
+                                allow[vars[0]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[1]);
+                            } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                                // Read the type field, it must be text
+                                if(decoder.getMajorType() != CBORBase.TYPE_TEXT_STRING) {
+                                    UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                    break;
+                                }
+                                decoder.skipEntry();
+                                // It doesn't matter what it is, just check it's string and exists.
+                            } else {
+                                // If it's not these two, throw an error
+                                UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                                break;
+                            }
+                        }
                     }
                     break;
                 case 0x05:
