@@ -191,6 +191,10 @@ public class CTAP2 extends Applet implements ExtendedLength {
             case FIDO2_VENDOR_ATTEST_GETCERT:
                 getCert(apdu);
                 break;
+            case FIDO2_AUTHENTICATOR_RESET:
+                // Need to finish doing this, we can, i mean, but I don't like it
+                returnError(apdu, CTAP1_ERR_SUCCESS);
+                break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
