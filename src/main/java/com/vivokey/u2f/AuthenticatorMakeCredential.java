@@ -237,6 +237,10 @@ public class AuthenticatorMakeCredential {
                     // Options map
                     // Parse the two rk and uv objects
                     // Read the map
+                    if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                        break;
+                    }
                     vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
                         // Parse the map
