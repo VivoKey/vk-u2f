@@ -506,7 +506,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             vars[6] = 0;
             for (vars[7] = (short) (discoverableCreds.getLength() - 1); vars[7] >= 0; vars[7]--) {
                 temp = discoverableCreds.getCred(vars[7]);
-                // Check for null first...
+                // Check for null or doesn't match rpId
                 if (temp != null && temp.rp.checkId(assertion.rpId, (short) 0, (short) assertion.rpId.length)) {
                     // Then valid
                     list[vars[6]++] = temp;
@@ -521,8 +521,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
             ret[vars[7]] = list[vars[7]];
         }
         // Null out the unused stuff
-        list = null;
-        temp = null;
         JCSystem.requestObjectDeletion();
         return ret;
 

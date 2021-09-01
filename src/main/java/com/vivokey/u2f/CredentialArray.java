@@ -86,7 +86,10 @@ public class CredentialArray {
                 return counter;
             } 
         }
-        // No free slots, so expand
+        // No free slots
+
+        // Add more
+
         StoredCredential[] tmp = new StoredCredential[size];
         boolean[] tmpStatus = new boolean[size];
         for(counter = 0; counter < size; counter++) {
@@ -100,6 +103,8 @@ public class CredentialArray {
             creds[counter] = tmp[counter];
             slotStatus[counter] = tmpStatus[counter];
         }
+        // Actually double the size....
+        size *= (short) 2;
         // Delete objects we used to copy
         JCSystem.requestObjectDeletion();
         // Return the first free slot in the new array, which is going to be the counter plus 1
