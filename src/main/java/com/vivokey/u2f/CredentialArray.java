@@ -16,8 +16,8 @@
 */
 package com.vivokey.u2f;
 
-import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
+import javacard.framework.UserException;
 
 /**
  * Dynamically resizable credential storage array. Gracefully handles space errors.
@@ -41,13 +41,13 @@ public class CredentialArray {
      * Adds a new credential to the first free slot, or overwrites if a matching rp and user id matches.
      * @param in the StoredCredential object to be stored.
      */
-    public void addCredential(StoredCredential in) {
+    public void addCredential(StoredCredential in) throws UserException{
         try {
             short slot = alreadyExists(in);
             creds[slot] = in;
             slotStatus[slot] = true;
         } catch (Exception e) {
-            ISOException.throwIt(CTAP2.CTAP2_ERR_KEY_STORE_FULL);
+            UserException.throwIt(CTAP2.CTAP2_ERR_KEY_STORE_FULL);
         }
     }
     /**

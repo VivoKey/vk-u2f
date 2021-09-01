@@ -458,8 +458,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Add a Discoverable Credential (resident)
         try {
             discoverableCreds.addCredential(cred);
-        } catch (ISOException e) {
-            returnError(apdu, CTAP2_ERR_INVALID_CREDENTIAL);
+        } catch (UserException e) {
+            returnError(apdu, e.getReason());
         }
     }
 
