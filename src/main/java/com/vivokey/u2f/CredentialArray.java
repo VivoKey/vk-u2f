@@ -100,8 +100,6 @@ public class CredentialArray {
             creds[counter] = tmp[counter];
             slotStatus[counter] = tmpStatus[counter];
         }
-        tmp = null;
-        tmpStatus = null;
         // Delete objects we used to copy
         JCSystem.requestObjectDeletion();
         // Return the first free slot in the new array, which is going to be the counter plus 1

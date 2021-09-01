@@ -139,7 +139,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Create the CBOR decoder
         cborDecoder = new CBORDecoder();
         cborEncoder = new CBOREncoder();
-        discoverableCreds = new CredentialArray((short) 20);
+        discoverableCreds = new CredentialArray((short) 5);
         sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         attestation = new AttestationKeyPair();
         nextAssertion = JCSystem.makeTransientShortArray((short) 1, JCSystem.CLEAR_ON_RESET);
@@ -556,7 +556,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
      * checking. This is just so testing doesn't crap out.
      */
     private void doReset(APDU apdu) {
-        discoverableCreds = new CredentialArray((short) 20);
+        discoverableCreds = new CredentialArray((short) 5);
         JCSystem.requestObjectDeletion();
         returnError(apdu, CTAP1_ERR_SUCCESS);
     }
