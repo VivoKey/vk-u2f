@@ -24,6 +24,11 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
+import javacard.security.ECKey;
+import javacard.security.ECPrivateKey;
+import javacard.security.ECPublicKey;
+import javacard.security.KeyBuilder;
+import javacard.security.KeyPair;
 import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.apdu.ExtendedLength;
@@ -49,6 +54,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
     private short[] outChainRam;
     private boolean[] isOutChaining;
     private AuthenticatorMakeCredential cred;
+
+    private KeyPair ecDhKey;
+    private boolean[] ecDhSet;
 
     private StoredCredential tempCred;
 
@@ -148,6 +156,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
         chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         outChainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         isOutChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
+        ECPublicKey ecDhPub = (ECPublicKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_EC_FP_PUBLIC,
+                JCSystem.MEMORY_TYPE_TRANSIENT_RESET, KeyBuilder.LENGTH_EC_FP_256, false);
+        ECPrivateKey ecDhPriv = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_EC_FP_PRIVATE,
+                JCSystem.MEMORY_TYPE_TRANSIENT_RESET, KeyBuilder.LENGTH_EC_FP_256, false);
+        ecDhKey = new KeyPair(ecDhPub, ecDhPriv);
+        ecDhSet = JCSystem.makeTransientBooleanArray((short) 1, JCSystem.CLEAR_ON_RESET);
 
     }
 
@@ -393,12 +407,12 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
         // Create the authenticatorData to sign
         sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-        if(assertion.options[1]) {
+        if (assertion.options[1]) {
             scratch[32] = 0x05;
         } else {
             scratch[32] = 0x01;
         }
-        
+
         assertionCreds[0].readCounter(scratch, (short) 33);
         // Copy the hash in
         assertion.getHash(scratch, (short) 37);
@@ -432,7 +446,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-            if(assertion.options[1]) {
+            if (assertion.options[1]) {
                 scratch[32] = 0x05;
             } else {
                 scratch[32] = 0x01;
@@ -454,6 +468,43 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
     }
 
+    // Process the AuthenticatorClientPin feature
+    // Note: we only implement the keyAgreement bit
+    public void clientPin(APDU apdu, short bufLen) {
+        try {
+            cborDecoder.init(inBuf, (short) 1, bufLen);
+            // Start reading
+            cborDecoder.readMajorType(CBORBase.TYPE_MAP);
+            // Read PIN protocol tag
+            if (cborDecoder.readInt8() != (byte) 0x01) {
+                UserException.throwIt(CTAP2_ERR_INVALID_CBOR);
+                return;
+            }
+            // Read the actual protocol
+            if (cborDecoder.readInt8() != (byte) 0x01) {
+                UserException.throwIt(CTAP2_ERR_INVALID_CBOR);
+                return;
+            }
+            // Subcommand now
+            if (cborDecoder.readInt8() != (byte) 0x02) {
+                UserException.throwIt(CTAP2_ERR_INVALID_CBOR);
+                return;
+            }
+            // Actual subcommand
+            switch (cborDecoder.readInt8()) {
+                case 0x02:
+                    // Seems to be a Diffie-Hellman thing
+                    generateDH(apdu);
+                    break;
+                default:
+                    UserException.throwIt(CTAP2_ERR_UNSUPPORTED_OPTION);
+                    return;
+            }
+        } catch (UserException e) {
+            returnError(apdu, e.getReason());
+        }
+    }
+
     private void addResident(APDU apdu, StoredCredential cred) {
         // Add a Discoverable Credential (resident)
         try {
@@ -462,6 +513,59 @@ public class CTAP2 extends Applet implements ExtendedLength {
             returnError(apdu, e.getReason());
         }
     }
+
+    // Generate a session-specific ECDH P-256 key for Diffie-Hellman with the
+    // platform (Used for PIN but we only ever do it for hmac-secret)
+    private void generateDH(APDU apdu) {
+        byte[] w;
+        try {
+            w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            w = new byte[65];
+        }
+
+        
+
+        if (!ecDhSet[0]) {
+            // Grab the public key and set it's parameters
+            KeyParams.sec256r1params((ECKey) ecDhKey.getPublic());
+            // Generate a new key-pair
+            ecDhKey.genKeyPair();
+        }
+
+        ((ECPublicKey) ecDhKey.getPublic()).getW(w, (short) 0);
+        // Return the data requested
+        inBuf[0] = 0x00;
+        cborEncoder.init(inBuf, (short) 1, (short) 1199);
+        // Start a map
+        cborEncoder.startMap((short) 1);
+        // Encode the COSE key identifier
+        cborEncoder.encodeUInt8((byte) 0x01);
+        // Start the COSE map
+        cborEncoder.startMap((short) 5);
+        // Kty tag
+        cborEncoder.encodeUInt8((byte) 0x01);
+        // Kty value - EC2
+        cborEncoder.encodeUInt8((byte) 0x02);
+        // Alg tag
+        cborEncoder.encodeUInt8((byte) 0x03);
+        // Alg value - ES256 (-7, 6 in negative format) 
+        cborEncoder.encodeNegativeUInt8((byte) 0x06);
+        // Crv tag - negative
+        cborEncoder.encodeNegativeUInt8((byte) 0x00);
+        // Crv value - P-256
+        cborEncoder.encodeUInt8((byte) 0x01);
+        // X-coord tag
+        cborEncoder.encodeNegativeUInt8((byte) 0x01);
+        // X-coord value
+        cborEncoder.encodeByteString(w, (short) 1, (short) 32);
+        // Y-coord tag
+        cborEncoder.encodeNegativeUInt8((byte) 0x02);
+        // Y-coord value
+        cborEncoder.encodeByteString(w, (short) 33, (short) 32);
+        // That's it
+        sendLongChaining(apdu, cborEncoder.getCurrentOffset());
+    }   
 
     /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in

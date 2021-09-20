@@ -30,6 +30,10 @@ public abstract class StoredCredential {
     PublicKeyCredentialRpEntity rp;
     private byte[] sigCounter;
     protected boolean initialised;
+    
+    protected byte[] credRandom;
+    protected boolean hmacEnabled;
+
     protected StoredCredential() {
         if(rng == null) {
             rng = ServerKeyCrypto.getRng();
@@ -38,7 +42,25 @@ public abstract class StoredCredential {
         rng.generateData(id, (short) 0, (short) 16);
         sigCounter = new byte[4];
         initialised = false;
+        hmacEnabled = false;
+        
     }
+    // Does the HMAC secret stuff
+    public short doHmacSecret(byte[] inBuf, short inOff, short inLen) {
+        // TODO: Well, this
+        return 0;
+    }
+
+    // Initialise the credRandom
+    public boolean initialiseCredSecret() {
+        // Generate the actual credRandom - this is the same across all credentials
+        credRandom = new byte[32];
+        rng.generateData(credRandom, (short) 0, (short) 32);
+        hmacEnabled = true;
+        return true;
+    }
+
+
     // Generic ID check function, for credential IDs
     public boolean checkId(byte[] inBuf, short inOff, short inLen) {
         if(inLen != (short) 16) {
