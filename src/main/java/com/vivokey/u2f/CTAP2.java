@@ -315,6 +315,10 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
                 return;
             }
+            if(cred.isHmac()) {
+                // Trigger the HMAC key generation
+                tempCred.initialiseCredSecret();
+            }
 
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, tempCred);
@@ -333,7 +337,16 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Put the authdata identifier there
             cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
-            vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
+            
+            // Depends if we need extensions or not
+            if(tempCred.hmacEnabled) {
+                // Extra data is 14 bytes
+                vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen() + 14));
+            } else {
+                vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
+            }
+
+            
             // Stash where it begins
             vars[7] = vars[0];
             // Create the SHA256 hash of the RP ID
@@ -347,6 +360,14 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Just note down where this starts for future ref
             vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
 
+            // If we need to, add the extension data
+            if(tempCred.hmacEnabled) {
+                cborEncoder.startMap((short) 1);
+                // Tag - hmac-secret
+                cborEncoder.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+                // Value - true
+                cborEncoder.encodeBoolean(true);
+            }
             // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
             // Start to build into the cbor array manually, to avoid arrayCopy

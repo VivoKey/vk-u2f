@@ -26,6 +26,7 @@ public class AuthenticatorMakeCredential {
     private PublicKeyCredentialUserEntity user;
     private PublicKeyCredentialParams params;
     private boolean[] options = new boolean[2];
+    private boolean hmacSecret; 
 
     public PublicKeyCredentialDescriptor[] exclude;
 
@@ -60,6 +61,8 @@ public class AuthenticatorMakeCredential {
         // options[1] is uv - default false
         options[0] = true;
         options[1] = false;
+        // Hmac-secret = false by default
+        hmacSecret = false;
         // We now have the number of objects in the map
         // Read all the objects in map
         for (short i = 0; i < len1; i++) {
@@ -272,13 +275,27 @@ public class AuthenticatorMakeCredential {
                 
                 case (short) 6:
                     // Extensions
-                    // We don't support any yet
-                    // So check it's a map and skip
+                    // Check it's a map
                     if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
                         UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
                         break;
                     }
-                    decoder.skipEntry();
+                    // We support one extension - hmac-secret
+                    len2 = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    // Iterate over extensions
+                    for(short j = 0; j < len2; j++) {
+                        // Read the name
+                        decoder.readTextString(scratch1, (short) 0);
+                        // Check if it matches hmac-secret
+                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11) == (short) 0) {
+                            // Great 
+                            hmacSecret = decoder.readBoolean();
+                        } else {
+                            // Skip the unrecognised option
+                            decoder.skipEntry();
+                        }
+                    }
+                    
                     break;
                 default:
                     // Skip it transparently
@@ -315,6 +332,10 @@ public class AuthenticatorMakeCredential {
 
     public boolean isExclude() {
         return (exclude != null && exclude.length > 0);
+    }
+    
+    public boolean isHmac() {
+        return hmacSecret;
     }
 
     /**

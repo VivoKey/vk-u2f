@@ -35,4 +35,5 @@ public class Utf8Strings {
     public static final byte[] UTF8_PUBLIC_KEY = {'p', 'u', 'b', 'l', 'i', 'c', '-', 'k', 'e', 'y'};
     public static final byte[] UTF8_FIDO2 = {'F', 'I', 'D', 'O', '_', '2', '_', '0'};
     public static final byte[] UTF8_ICON = {'i', 'c', 'o', 'n'};
+    public static final byte[] UTF8_HMAC_SECRET = {'h', 'm', 'a', 'c', '-', 's', 'e', 'c', 'r', 'e', 't'};
 }
