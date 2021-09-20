@@ -25,6 +25,7 @@ public class AuthenticatorGetAssertion {
     byte[] clientDataHash;
     boolean[] options;
     PublicKeyCredentialDescriptor[] allow;
+    HMACSecret ext;
 
     public AuthenticatorGetAssertion(CBORDecoder decoder) throws UserException {
 
@@ -36,7 +37,7 @@ public class AuthenticatorGetAssertion {
         }
         // Create options
         options = new boolean[2];
-        // UP 
+        // UP
         options[0] = true;
         // UV
         options[1] = false;
@@ -48,9 +49,9 @@ public class AuthenticatorGetAssertion {
         } catch (Exception e) {
             scratch = new byte[64];
         }
-        for(vars[1] = 0; vars[1] < vars[0]; vars[1]++ ) {
+        for (vars[1] = 0; vars[1] < vars[0]; vars[1]++) {
             vars[2] = decoder.readInt8();
-            switch(vars[2]) {
+            switch (vars[2]) {
                 case 0x01:
                     // RpId
                     vars[3] = decoder.readTextString(scratch, (short) 0);
@@ -69,20 +70,22 @@ public class AuthenticatorGetAssertion {
                     // Read the array
                     vars[3] = decoder.readMajorType(CBORBase.TYPE_ARRAY);
                     allow = new PublicKeyCredentialDescriptor[vars[3]];
-                    for(vars[4] = 0; vars[4] < (short) allow.length; vars[4]++) {
+                    for (vars[4] = 0; vars[4] < (short) allow.length; vars[4]++) {
                         // Read the map. It has 2 things in it.
                         vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        if(vars[3] != 2) {
+                        if (vars[3] != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                             break;
                         }
-                        for(vars[5] = 0; vars[5] < (short) 2; vars[5]++) {
+                        for (vars[5] = 0; vars[5] < (short) 2; vars[5]++) {
                             vars[3] = decoder.readTextString(scratch, (short) 0);
-                            if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                            if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
+                                    (short) 2) == (byte) 0) {
                                 // Read the actual id
                                 vars[3] = decoder.readByteString(scratch, (short) 0);
                                 allow[vars[4]] = new PublicKeyCredentialDescriptor(scratch, (short) 0, vars[3]);
-                            } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                            } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0,
+                                    (short) 4) == (byte) 0) {
                                 // Read the type field, it must be text
                                 decoder.readTextString(scratch, (short) 0);
                                 // It doesn't matter what it is, just check it's string and exists.
@@ -97,13 +100,14 @@ public class AuthenticatorGetAssertion {
                 case 0x05:
                     // Options - two important things here
                     vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    for(vars[4] = 0; vars[4] < vars[3]; vars[4]++) {
+                    for (vars[4] = 0; vars[4] < vars[3]; vars[4]++) {
                         // Read the text string
                         decoder.readTextString(scratch, (short) 0);
-                        if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
+                        if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
                             // Is the UP param
                             options[0] = decoder.readBoolean();
-                        } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0, (short) 2) == 0) {
+                        } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
+                                (short) 2) == 0) {
                             // Is the UV param
                             options[1] = decoder.readBoolean();
                         } else {
@@ -112,7 +116,27 @@ public class AuthenticatorGetAssertion {
                     }
                     break;
                 case 0x04:
-                    // Extensions - we mostly ignore
+                    // Extensions - check for hmac-secret
+                    // Check for a map first
+                    if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                        break;
+                    }
+                    // Read length
+                    vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    // Read text string
+                    decoder.readTextString(scratch, (short) 0);
+                    if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11) == 0) {
+                        // Is hmac-secret
+                        // There's a whole... thing here
+                        if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                            break;
+                        }
+                        ext = new HMACSecret(decoder);
+                    }
+
+
                     decoder.skipEntry();
                     break;
                 case 0x06:
@@ -130,7 +154,7 @@ public class AuthenticatorGetAssertion {
 
         }
         // We should check we have our "mandatory" options
-        if(rpId == null || clientDataHash == null) {
+        if (rpId == null || clientDataHash == null) {
             UserException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
         }
         // Good to go I guess
@@ -145,5 +169,5 @@ public class AuthenticatorGetAssertion {
     public boolean hasAllow() {
         return (allow != null && allow.length > 0);
     }
-    
+
 }

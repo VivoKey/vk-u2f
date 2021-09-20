@@ -439,6 +439,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
         assertion.getHash(scratch, (short) 37);
         // Create the output
 
+        // Do we need to do hmac-secret stuff?
+        // TODO
+
         // Status flags first
         inBuf[0] = 0x00;
         // Create the encoder
@@ -570,8 +573,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborEncoder.encodeUInt8((byte) 0x02);
         // Alg tag
         cborEncoder.encodeUInt8((byte) 0x03);
-        // Alg value - ES256 (-7, 6 in negative format) 
-        cborEncoder.encodeNegativeUInt8((byte) 0x06);
+        // Alg value - ES256 but DH (-25, 24 in negative format) 
+        cborEncoder.encodeNegativeUInt8((byte) 0x24);
         // Crv tag - negative
         cborEncoder.encodeNegativeUInt8((byte) 0x00);
         // Crv value - P-256
