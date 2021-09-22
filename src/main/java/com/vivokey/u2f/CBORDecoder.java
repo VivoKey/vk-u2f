@@ -101,7 +101,7 @@ public class CBORDecoder extends CBORBase {
      */
     public short readMajorType(byte majorType) throws UserException {
         if (majorType != getMajorType()) {
-            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt((byte) 0x72);
             return 0;
         }
         return readLength();
@@ -194,7 +194,7 @@ public class CBORDecoder extends CBORBase {
         } else if (b == ENCODED_FALSE) {
             return false;
         } else {
-            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt((byte) 0x73);
         }
         // Never happens
         return true;
@@ -210,7 +210,7 @@ public class CBORDecoder extends CBORBase {
      */
     public short readByteString(byte[] outBuffer, short outOffset) throws UserException {
         if(getMajorType() != TYPE_BYTE_STRING) {
-            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt((byte) 0x74);
             return 0;
         }
         short length = readLength();
@@ -228,7 +228,7 @@ public class CBORDecoder extends CBORBase {
      */
     public short readTextString(byte[] outBuffer, short outOffset) throws UserException {
         if(getMajorType() != TYPE_TEXT_STRING) {
-            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+            UserException.throwIt((byte) 0x75);
             return 0;
         }
         short length = readLength();

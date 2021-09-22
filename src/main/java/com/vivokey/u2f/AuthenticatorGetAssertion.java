@@ -130,7 +130,7 @@ public class AuthenticatorGetAssertion {
                         // Is hmac-secret
                         // There's a whole... thing here
                         if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                            UserException.throwIt((byte) 0x70);
                             break;
                         }
                         ext = new HMACSecret(decoder);
