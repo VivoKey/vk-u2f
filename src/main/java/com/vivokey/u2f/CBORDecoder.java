@@ -114,14 +114,14 @@ public class CBORDecoder extends CBORBase {
      * 
      * @return The current 8bit Integer
      */
-    public byte readInt8(){
+    public byte readInt8() throws UserException {
         final byte eventlength = (byte) (readRawByte() & ADDINFO_MASK);
         if (eventlength < ENCODED_ONE_BYTE) {
             return eventlength;
         } else if (eventlength == ENCODED_ONE_BYTE) {
             return (byte) (readRawByte() & 0xff);
         } else {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            UserException.throwIt((byte) 0x51);
         }
         return 0; // Never reached
     }
@@ -133,22 +133,22 @@ public class CBORDecoder extends CBORBase {
      * 
      * @return The current 16bit Integer
      */
-    public short readInt16() {
+    public short readInt16() throws UserException {
         final byte addInfo = (byte) (readRawByte() & ADDINFO_MASK);
         if (addInfo == ENCODED_TWO_BYTES) {
             return Util.getShort(getBuffer(), getCurrentOffsetAndIncrease((short) 2));
         } else {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            UserException.throwIt((byte) 0x52);
         }
         return 0; // Never reached
     }
 
-    public void readInt32(byte[] output, short offset) {
+    public void readInt32(byte[] output, short offset) throws UserException {
         final byte addInfo = (byte) (readRawByte() & ADDINFO_MASK);
         if (addInfo == ENCODED_FOUR_BYTES) {
             Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 4), output, offset, (short) 4);
         } else {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            UserException.throwIt((byte) 0x53);
         }
     }
 
@@ -157,11 +157,11 @@ public class CBORDecoder extends CBORBase {
         if (addInfo == ENCODED_EIGHT_BYTES) {
             Util.arrayCopyNonAtomic(getBuffer(), getCurrentOffsetAndIncrease((short) 8), output, offset, (short) 8);
         } else {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            ISOException.throwIt((byte) 0x54);
         }
     }
 
-    public short readEncodedInteger(byte[] output, short offset) {
+    public short readEncodedInteger(byte[] output, short offset) throws UserException {
         final byte size = getIntegerSize();
         if (size == 1) { // Check for special case (integer could be encoded in first type)
             output[offset] = readInt8();
