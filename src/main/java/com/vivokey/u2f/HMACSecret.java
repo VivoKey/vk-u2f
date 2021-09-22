@@ -26,11 +26,8 @@ public class HMACSecret {
                         break;
                     }
                     // Initialise w to make the pubkey out of
-                    try {
-                        w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
-                    } catch (Exception e) {
-                        w = new byte[65];
-                    }
+                    w = new byte[65];
+                    w[0] = 0x04;
                     // First tag, 0x01
                     dec.readRawByte();
                     // Value should be 2
@@ -63,7 +60,7 @@ public class HMACSecret {
                     dec.readRawByte();
                     try {
                         dec.readByteString(w, (short) 1);
-                    } catch (Exception e) {
+                    } catch (UserException e) {
                         UserException.throwIt((byte) 0x71);
                         break;
                     }
@@ -71,8 +68,8 @@ public class HMACSecret {
                     dec.readRawByte();
                     try {
                         dec.readByteString(w, (short) 33);
-                    } catch (Exception e) {
-                        UserException.throwIt((byte) 0x72);
+                    } catch (UserException e) {
+                        UserException.throwIt(dec.getCurrentOffset());
                         break;
                     }
                     break;
