@@ -58,17 +58,31 @@ public class HMACSecret {
                     }
                     w[0] = 0x04;
                     // Read the X-coordinate in
+                    try {
                     dec.readByteString(w, (short) 1);
+                    } catch (Exception e) {
+                        UserException.throwIt((byte)0x81);
+                    }
                     // Tag -3: Y-coord
                     dec.readInt8();
                     // Read the Y-coordinate in
+                    try {
                     dec.readByteString(w, (short) 33);
+                    } catch (Exception e) {
+                        UserException.throwIt((byte) 0x82);
+                    }
                     break;
                 case 0x02:
                     // This is some kind of salting thing
                     // Read it in
                     byte[] tmp = new byte[64];
-                    short len2 = dec.readByteString(tmp, (short) 0);
+                    short len2 = 0;
+                    try {
+                    len = dec.readByteString(tmp, (short) 0);
+                    } catch (Exception e) {
+                        UserException.throwIt((byte) 0x83);
+                        break;
+                    }
                     if(len2 == 32) {
                         encSalts = new byte[32];
                         Util.arrayCopy(tmp, (short) 0, encSalts, (short) 0, (short) 32);
