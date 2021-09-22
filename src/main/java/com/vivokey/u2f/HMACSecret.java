@@ -83,7 +83,12 @@ public class HMACSecret {
                     // Some kind of authentication
                     // Read it in
                     auth = new byte[16];
+                    try {
                     dec.readByteString(auth, (short) 0);
+                    } catch (UserException e) {
+                        UserException.throwIt((byte)0x80);
+                        break;
+                    }
                     break;
                 default:
                     UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);

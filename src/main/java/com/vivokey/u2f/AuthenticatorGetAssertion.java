@@ -132,25 +132,11 @@ public class AuthenticatorGetAssertion {
                         decoder.readTextString(scratch, (short) 0);
                         if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
                             // Is the UP param
-                            try {
-                                options[0] = decoder.readBoolean();
-                            } catch (UserException e) {
-                                if (e.getReason() == (byte) 0x73) {
-                                    UserException.throwIt(decoder.getCurrentOffset());
-                                    break;
-                                }
-                            }
+                            options[0] = decoder.readBoolean();
                         } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
                                 (short) 2) == 0) {
                             // Is the UV param
-                            try {
-                                options[1] = decoder.readBoolean();
-                            } catch (UserException e) {
-                                if (e.getReason() == (byte) 0x73) {
-                                    UserException.throwIt(decoder.getCurrentOffset());
-                                    break;
-                                }
-                            }
+                            options[1] = decoder.readBoolean();
                         } else {
                             decoder.skipEntry();
                         }
