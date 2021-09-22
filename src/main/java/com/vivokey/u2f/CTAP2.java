@@ -308,7 +308,16 @@ public class CTAP2 extends Applet implements ExtendedLength {
                     return;
             }
         } catch (CryptoException e) {
+            if(e.getReason() == CryptoException.NO_SUCH_ALGORITHM) {
+                returnError(apdu, (byte) 0x70);
+                return;
+            }
+            if(e.getReason() == CryptoException.ILLEGAL_USE) {
+                returnError(apdu, (byte) 0x73);
+                return;
+            }
             returnError(apdu, (byte) 0x71);
+            return;
         } catch (Exception e) {
             returnError(apdu, (byte) 0x72);
             return;
