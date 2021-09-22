@@ -42,7 +42,9 @@ public class HMACSecret {
                     // Second tag, 0x03
                     dec.readRawByte();
 
-                    val = dec.readInt16();
+                    // There's a weird issue here
+                    // It's a two-byte thing, but maybe shouldn't be, idk
+                    val = dec.readInt8();
                     if (val != (short) 24) {
                         UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
