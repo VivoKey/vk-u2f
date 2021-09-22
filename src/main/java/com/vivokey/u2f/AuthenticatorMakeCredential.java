@@ -247,32 +247,22 @@ public class AuthenticatorMakeCredential {
                     }
                     break;
                 case (short) 6:
-                    try {
-                        // Extensions
-                        // Check it's a map
-                        if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
-                            break;
+                    // Extensions
+                    // We support one extension - hmac-secret - this will throw if not a map.
+                    short len3 = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    // Iterate over extensions
+                    for (short j = 0; j < len3; j++) {
+                        // Read the name
+                        decoder.readTextString(scratch1, (short) 0);
+                        // Check if it matches hmac-secret
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
+                                (short) 11) == (short) 0) {
+                            // Great
+                            hmacSecret = decoder.readBoolean();
+                        } else {
+                            // Skip the unrecognised option
+                            decoder.skipEntry();
                         }
-                        // We support one extension - hmac-secret
-                        short len3 = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        // Iterate over extensions
-                        for (short j = 0; j < len3; j++) {
-                            // Read the name
-                            decoder.readTextString(scratch1, (short) 0);
-                            // Check if it matches hmac-secret
-                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
-                                    (short) 11) == (short) 0) {
-                                // Great
-                                hmacSecret = decoder.readBoolean();
-                            } else {
-                                // Skip the unrecognised option
-                                decoder.skipEntry();
-                            }
-                        }
-                    } catch (Exception e) {
-                        UserException.throwIt((short) 0x7000);
-                        break;
                     }
 
                     break;

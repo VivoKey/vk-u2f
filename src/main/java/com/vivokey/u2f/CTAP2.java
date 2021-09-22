@@ -207,6 +207,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 // Need to finish doing this, we can, i mean, but I don't like it
                 doReset(apdu);
                 break;
+            case FIDO2_AUTHENTICATOR_CLIENT_PIN:
+                clientPin(apdu, vars[3]);
+                break;
             default:
                 returnError(apdu, CTAP1_ERR_INVALID_COMMAND);
         }
