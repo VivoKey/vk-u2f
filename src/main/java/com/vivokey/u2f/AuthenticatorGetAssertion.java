@@ -100,6 +100,30 @@ public class AuthenticatorGetAssertion {
                         }
                     }
                     break;
+                case 0x04:
+                    // Extensions - check for hmac-secret
+                    // Check for a map first
+                    // Read length
+                    vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
+                    // Read text string
+                    for (int i = 0; i < vars[3]; i++) {
+                        decoder.readTextString(scratch, (short) 0);
+                        if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
+                                (short) 11) == 0) {
+                            // Is hmac-secret
+                            // There's a whole... thing here
+                            if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                                UserException.throwIt((byte) 0x70);
+                                break;
+                            }
+                            ext = new HMACSecret(decoder);
+                            hmac = true;
+                        } else {
+                            decoder.skipEntry();
+                        }
+                    }
+
+                    break;
                 case 0x05:
                     // Options - two important things here
                     vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
@@ -108,35 +132,28 @@ public class AuthenticatorGetAssertion {
                         decoder.readTextString(scratch, (short) 0);
                         if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == 0) {
                             // Is the UP param
-                            options[0] = decoder.readBoolean();
+                            try {
+                                options[0] = decoder.readBoolean();
+                            } catch (UserException e) {
+                                if (e.getReason() == (byte) 0x73) {
+                                    UserException.throwIt(decoder.getCurrentOffset());
+                                    break;
+                                }
+                            }
                         } else if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_UV, (short) 0,
                                 (short) 2) == 0) {
                             // Is the UV param
-                            options[1] = decoder.readBoolean();
+                            try {
+                                options[1] = decoder.readBoolean();
+                            } catch (UserException e) {
+                                if (e.getReason() == (byte) 0x73) {
+                                    UserException.throwIt(decoder.getCurrentOffset());
+                                    break;
+                                }
+                            }
                         } else {
                             decoder.skipEntry();
                         }
-                    }
-                    break;
-                case 0x04:
-                    // Extensions - check for hmac-secret
-                    // Check for a map first
-                    // Read length
-                    vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    // Read text string
-                    decoder.readTextString(scratch, (short) 0);
-                    if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
-                            (short) 11) == 0) {
-                        // Is hmac-secret
-                        // There's a whole... thing here
-                        if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                            UserException.throwIt((byte) 0x70);
-                            break;
-                        }
-                        ext = new HMACSecret(decoder);
-                        hmac = true;
-                    } else {
-                        decoder.skipEntry();
                     }
                     break;
                 case 0x06:
