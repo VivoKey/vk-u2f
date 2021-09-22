@@ -27,6 +27,7 @@ import javacard.framework.Util;
 import javacard.security.ECKey;
 import javacard.security.ECPrivateKey;
 import javacard.security.ECPublicKey;
+import javacard.security.KeyAgreement;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.MessageDigest;
@@ -57,6 +58,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
     private KeyPair ecDhKey;
     private boolean[] ecDhSet;
+    private KeyAgreement ecDhAg;
 
     private StoredCredential tempCred;
 
@@ -162,7 +164,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 JCSystem.MEMORY_TYPE_TRANSIENT_RESET, KeyBuilder.LENGTH_EC_FP_256, false);
         ecDhKey = new KeyPair(ecDhPub, ecDhPriv);
         ecDhSet = JCSystem.makeTransientBooleanArray((short) 1, JCSystem.CLEAR_ON_RESET);
-
+        ecDhAg = KeyAgreement.getInstance(KeyAgreement.ALG_EC_SVDP_DH_PLAIN, false);
     }
 
     public void handle(APDU apdu) {
@@ -315,7 +317,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
                 return;
             }
-            if(cred.isHmac()) {
+            if (cred.isHmac()) {
                 // Trigger the HMAC key generation
                 tempCred.initialiseCredSecret();
             }
@@ -337,16 +339,15 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Put the authdata identifier there
             cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
-            
+
             // Depends if we need extensions or not
-            if(tempCred.hmacEnabled) {
+            if (tempCred.hmacEnabled) {
                 // Extra data is 14 bytes
                 vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen() + 14));
             } else {
                 vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
             }
 
-            
             // Stash where it begins
             vars[7] = vars[0];
             // Create the SHA256 hash of the RP ID
@@ -361,7 +362,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
 
             // If we need to, add the extension data
-            if(tempCred.hmacEnabled) {
+            if (tempCred.hmacEnabled) {
                 cborEncoder.startMap((short) 1);
                 // Tag - hmac-secret
                 cborEncoder.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
@@ -408,53 +409,69 @@ public class CTAP2 extends Applet implements ExtendedLength {
     }
 
     public void authGetAssertion(APDU apdu, short bufLen) {
-        nextAssertion[0] = (short) 0;
-        // Decode the CBOR array for the assertion
-        cborDecoder.init(inBuf, (short) 1, bufLen);
         try {
-            assertion = new AuthenticatorGetAssertion(cborDecoder);
+            nextAssertion[0] = (short) 0;
+            // Decode the CBOR array for the assertion
+            cborDecoder.init(inBuf, (short) 1, bufLen);
+            try {
+                assertion = new AuthenticatorGetAssertion(cborDecoder);
+            } catch (UserException e) {
+                returnError(apdu, e.getReason());
+                return;
+            }
+            // Match the assertion to the credential
+            // Get a list of matching credentials
+            assertionCreds = findCredentials(apdu, assertion);
+            // Use the first one; this complies with both ideas - use the most recent match
+            // if no allow list, use any if an allow list existed
+            if (assertionCreds.length == 0 || assertionCreds[0] == null) {
+                returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
+                return;
+            }
+            // Create the authenticatorData to sign
+            sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+            if (assertion.options[1]) {
+                scratch[32] = 0x05;
+            } else {
+                scratch[32] = 0x01;
+            }
+
+            assertionCreds[0].readCounter(scratch, (short) 33);
+            // Where to copy hash to
+            short hashStart = 37;
+            if (assertion.isHmac()) {
+                // If hmac, make the space for the crap
+                if (!assertionCreds[0].hmacEnabled) {
+                    UserException.throwIt(CTAP2_ERR_INVALID_OPTION);
+                    return;
+                }
+                if (assertion.ext.encSalts.length == 32) {
+                    hashStart += 47;
+                } else {
+                    hashStart += 79;
+                }
+            }
+            // Copy the hash in
+            assertion.getHash(scratch, hashStart);
+            // Create the output
+
+            // Status flags first
+            inBuf[0] = 0x00;
+            // Create the encoder
+            cborEncoder.init(inBuf, (short) 1, (short) 1199);
+            // Determine if we need 4 or 5 in the array
+            if (assertionCreds.length > 1) {
+                doAssertionCommon(cborEncoder, (short) 5);
+            } else {
+                doAssertionCommon(cborEncoder, (short) 4);
+            }
+            nextAssertion[0] = (short) 1;
+            // Emit this as a response
+            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
         } catch (UserException e) {
             returnError(apdu, e.getReason());
-            return;
-        }
-        // Match the assertion to the credential
-        // Get a list of matching credentials
-        assertionCreds = findCredentials(apdu, assertion);
-        // Use the first one; this complies with both ideas - use the most recent match
-        // if no allow list, use any if an allow list existed
-        if (assertionCreds.length == 0 || assertionCreds[0] == null) {
-            returnError(apdu, CTAP2_ERR_NO_CREDENTIALS);
-            return;
-        }
-        // Create the authenticatorData to sign
-        sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-        if (assertion.options[1]) {
-            scratch[32] = 0x05;
-        } else {
-            scratch[32] = 0x01;
-        }
 
-        assertionCreds[0].readCounter(scratch, (short) 33);
-        // Copy the hash in
-        assertion.getHash(scratch, (short) 37);
-        // Create the output
-
-        // Do we need to do hmac-secret stuff?
-        // TODO
-
-        // Status flags first
-        inBuf[0] = 0x00;
-        // Create the encoder
-        cborEncoder.init(inBuf, (short) 1, (short) 1199);
-        // Determine if we need 4 or 5 in the array
-        if (assertionCreds.length > 1) {
-            doAssertionCommon(cborEncoder, (short) 5);
-        } else {
-            doAssertionCommon(cborEncoder, (short) 4);
         }
-        nextAssertion[0] = (short) 1;
-        // Emit this as a response
-        sendLongChaining(apdu, cborEncoder.getCurrentOffset());
     }
 
     /**
@@ -466,29 +483,46 @@ public class CTAP2 extends Applet implements ExtendedLength {
      * @param inLen
      */
     private void authGetNextAssertion(APDU apdu, byte[] buffer) {
-        // Confirm that we have more assertions to do
-        if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
-            // Create the authenticatorData to sign
-            sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
-            if (assertion.options[1]) {
-                scratch[32] = 0x05;
-            } else {
-                scratch[32] = 0x01;
+        try {
+            // Confirm that we have more assertions to do
+            if (nextAssertion[0] != (short) 0 && nextAssertion[0] < assertionCreds.length) {
+                // Create the authenticatorData to sign
+                sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+                if (assertion.options[1]) {
+                    scratch[32] = 0x05;
+                } else {
+                    scratch[32] = 0x01;
+                }
+                assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
+                // Copy the hash in
+                short hashStart = 37;
+                if (assertion.isHmac()) {
+                    // If hmac, make the space for the crap
+                    if (!assertionCreds[nextAssertion[0]].hmacEnabled) {
+                        UserException.throwIt(CTAP2_ERR_INVALID_OPTION);
+                        return;
+                    }
+                    if (assertion.ext.encSalts.length == 32) {
+                        hashStart += 47;
+                    } else {
+                        hashStart += 79;
+                    }
+                }
+                assertion.getHash(scratch, hashStart);
+                // Create the output
+
+                // Status flags first
+                inBuf[0] = 0x00;
+                // Create the encoder
+                cborEncoder.init(inBuf, (short) 1, (short) 1199);
+                doAssertionCommon(cborEncoder, (short) 4);
+
+                nextAssertion[0]++;
+                // Emit this as a response
+                sendLongChaining(apdu, cborEncoder.getCurrentOffset());
             }
-            assertionCreds[nextAssertion[0]].readCounter(scratch, (short) 33);
-            // Copy the hash in
-            assertion.getHash(scratch, (short) 37);
-            // Create the output
-
-            // Status flags first
-            inBuf[0] = 0x00;
-            // Create the encoder
-            cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            doAssertionCommon(cborEncoder, (short) 4);
-
-            nextAssertion[0]++;
-            // Emit this as a response
-            sendLongChaining(apdu, cborEncoder.getCurrentOffset());
+        } catch (UserException e) {
+            returnError(apdu, e.getReason());
         }
     }
 
@@ -548,13 +582,13 @@ public class CTAP2 extends Applet implements ExtendedLength {
             w = new byte[65];
         }
 
-        
-
         if (!ecDhSet[0]) {
             // Grab the public key and set it's parameters
             KeyParams.sec256r1params((ECKey) ecDhKey.getPublic());
             // Generate a new key-pair
             ecDhKey.genKeyPair();
+            // Initialise the key agreement
+            ecDhAg.init(ecDhKey.getPrivate());
         }
 
         ((ECPublicKey) ecDhKey.getPublic()).getW(w, (short) 0);
@@ -573,7 +607,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborEncoder.encodeUInt8((byte) 0x02);
         // Alg tag
         cborEncoder.encodeUInt8((byte) 0x03);
-        // Alg value - ES256 but DH (-25, 24 in negative format) 
+        // Alg value - ES256 but DH (-25, 24 in negative format)
         cborEncoder.encodeNegativeUInt8((byte) 0x24);
         // Crv tag - negative
         cborEncoder.encodeNegativeUInt8((byte) 0x00);
@@ -589,7 +623,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
         cborEncoder.encodeByteString(w, (short) 33, (short) 32);
         // That's it
         sendLongChaining(apdu, cborEncoder.getCurrentOffset());
-    }   
+    }
 
     /**
      * Finds all credentials scoped to the RpId, and optionally the allowList, in
@@ -773,7 +807,33 @@ public class CTAP2 extends Applet implements ExtendedLength {
      * @param enc
      * @param mapLen
      */
-    private void doAssertionCommon(CBOREncoder enc, short mapLen) {
+    private void doAssertionCommon(CBOREncoder enc, short mapLen) throws UserException {
+
+        short assertionLen = 37;
+        // Longer if we need extensions
+        if (assertion.isHmac()) {
+            // Now do the actual hmac stuff
+
+            // Yes
+            // Create a CBOR map in here
+            CBOREncoder extEnc = new CBOREncoder();
+            extEnc.init(scratch, (short) 37, (short) 79);
+            // Start the map
+            extEnc.startMap((short) 1);
+            // Tag
+            extEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+            // Value
+            if ((short) (assertion.ext.encSalts.length) == (short) 32) {
+                assertionLen += (short) 47;
+                short startPos = extEnc.startByteString((short) 32);
+                assertionCreds[nextAssertion[0]].doHmacSecret(assertion.ext, ecDhAg, sha, scratch, startPos);
+            } else {
+                // Dual salts
+                assertionLen += (short) 79;
+                short startPos = extEnc.startByteString((short) 64);
+                assertionCreds[nextAssertion[0]].doHmacSecret(assertion.ext, ecDhAg, sha, scratch, startPos);
+            }
+        }
 
         // Determine if we need 4 or 5 in the array
         if (mapLen == 4) {
@@ -781,6 +841,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } else {
             enc.startMap((short) 5);
         }
+
+        //
 
         // Tag 1, credential data
         enc.encodeUInt8((byte) 0x01);
@@ -798,18 +860,18 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Done with tag 1
         cborEncoder.encodeUInt8((byte) 0x02);
         // Tag 2, which is the Authenticator bindings data (turns out this is excluding
-        // the clientDataHash)
-        cborEncoder.encodeByteString(scratch, (short) 0, (short) 37);
+        // the clientDataHash, but including extensions)
+        cborEncoder.encodeByteString(scratch, (short) 0, assertionLen);
         // Tag 3, the signature of said data
         // Put the tag in
         cborEncoder.encodeUInt8((byte) 0x03);
         // Turns out this is DER encoding, again
-
+        assertionLen += 32;
         // Sign the data
-        vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, (short) 69, scratch,
-                (short) 69);
+        vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, assertionLen, scratch,
+                assertionLen);
         // Create the ByteString to put it into
-        cborEncoder.encodeByteString(scratch, (short) 69, vars[3]);
+        cborEncoder.encodeByteString(scratch, assertionLen, vars[3]);
         // Tag 4, user details
         cborEncoder.encodeUInt8((byte) 0x04);
         // Start the PublicKeyCredentialUserEntity map

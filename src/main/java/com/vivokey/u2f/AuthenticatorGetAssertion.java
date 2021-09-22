@@ -26,6 +26,7 @@ public class AuthenticatorGetAssertion {
     boolean[] options;
     PublicKeyCredentialDescriptor[] allow;
     HMACSecret ext;
+    boolean hmac;
 
     public AuthenticatorGetAssertion(CBORDecoder decoder) throws UserException {
 
@@ -41,6 +42,8 @@ public class AuthenticatorGetAssertion {
         options[0] = true;
         // UV
         options[1] = false;
+        // HMAC
+        hmac = false;
         vars[0] = decoder.readMajorType(CBORBase.TYPE_MAP);
         // Create scratch
         byte[] scratch;
@@ -134,6 +137,7 @@ public class AuthenticatorGetAssertion {
                             break;
                         }
                         ext = new HMACSecret(decoder);
+                        hmac = true;
                     }
 
 
@@ -170,4 +174,7 @@ public class AuthenticatorGetAssertion {
         return (allow != null && allow.length > 0);
     }
 
+    public boolean isHmac() {
+        return hmac;
+    }
 }

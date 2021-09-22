@@ -2,17 +2,22 @@ package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
-import javacard.security.ECPublicKey;
-import javacard.security.KeyBuilder;
+import javacard.security.HMACKey;
+import javacard.security.Signature;
 
 // Stores the key agreement and associated details of the hmac-secret extension
 public class HMACSecret {
 
-    private ECPublicKey platformDhPub;
-    private byte[] encSalts;
-    private byte[] auth;
+    public byte[] w;
+    public byte[] encSalts;
+    public byte[] auth;
+
+    private static HMACKey secret;
+    private static Signature hmacSig;
 
     public HMACSecret(CBORDecoder dec) throws UserException {
+        
+
         // Start decoding the hmac-secret part of this
         short len = dec.readMajorType(CBORBase.TYPE_MAP);
         for (short i = 0; i < len; i++) {
@@ -48,8 +53,7 @@ public class HMACSecret {
                     }
                     // Tag -2: X-coord
                     dec.readInt8();
-                    // Create a w to make the pubkey out of
-                    byte[] w;
+                    // Initialise w to make the pubkey out of
                     try {
                         w = JCSystem.makeTransientByteArray((short) 65, JCSystem.CLEAR_ON_RESET);
                     } catch (Exception e) {
@@ -62,12 +66,6 @@ public class HMACSecret {
                     dec.readInt8();
                     // Read the Y-coordinate in
                     dec.readByteString(w, (short) 33);
-                    // Form the public key
-                    platformDhPub = (ECPublicKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_EC_FP_PUBLIC,
-                            KeyBuilder.LENGTH_EC_FP_256, false);
-                    // Copy the public key parameters over
-                    KeyParams.sec256r1params(platformDhPub);
-                    platformDhPub.setW(w, (short) 0, (short) 65);
                     break;
                 case 0x02:
                     // This is some kind of salting thing
@@ -88,6 +86,4 @@ public class HMACSecret {
         }
     }
 
-
-    
 }
