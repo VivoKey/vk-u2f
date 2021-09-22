@@ -26,7 +26,7 @@ public class AuthenticatorMakeCredential {
     private PublicKeyCredentialUserEntity user;
     private PublicKeyCredentialParams params;
     private boolean[] options = new boolean[2];
-    private boolean hmacSecret; 
+    private boolean hmacSecret;
 
     public PublicKeyCredentialDescriptor[] exclude;
 
@@ -115,10 +115,10 @@ public class AuthenticatorMakeCredential {
                     user = new PublicKeyCredentialUserEntity();
                     // Read the map length
                     len2 = decoder.readMajorType(CBORBase.TYPE_MAP);
-                   
+
                     // Read the map iteratively
                     for (short j = 0; j < len2; j++) {
-                            // Read the text string in
+                        // Read the text string in
                         decoder.readTextString(scratch1, (short) 0);
                         // Check if it equals id
                         if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
@@ -145,11 +145,12 @@ public class AuthenticatorMakeCredential {
                             user.setDisplayName(scratch1, len3);
                         } else
                         // If icon, even
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0, (short) 4) == (byte) 0) {
-                                // Read the string into scratch
+                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ICON, (short) 0,
+                                (short) 4) == (byte) 0) {
+                            // Read the string into scratch
                             short len3 = decoder.readTextString(scratch2, (short) 0);
                             user.setIcon(scratch2, len3);
-                        } else  {
+                        } else {
                             // Is optional, so we need to skip the value
                             decoder.skipEntry();
                         }
@@ -165,7 +166,7 @@ public class AuthenticatorMakeCredential {
                     for (short j = 0; j < len2; j++) {
                         // Read the map length - should be 2
                         short len3 = decoder.readMajorType(CBORBase.TYPE_MAP);
-                        if(len3 != 2) {
+                        if (len3 != 2) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
                         // Iterate over the map
@@ -195,11 +196,13 @@ public class AuthenticatorMakeCredential {
                                     }
                                 }
 
-                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0,
+                                    (short) 4) == (byte) 0) {
                                 // Public key type
                                 // Check it
                                 decoder.readTextString(scratch1, (short) 0);
-                                if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0, (short) 10) != (byte) 0) {
+                                if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_PUBLIC_KEY, (short) 0,
+                                        (short) 10) != (byte) 0) {
                                     UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                                 }
                             } else {
@@ -222,13 +225,15 @@ public class AuthenticatorMakeCredential {
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
                         }
                         // Parse it, properly
-                        for(short k = 0; k < (short) 2; k++) {
+                        for (short k = 0; k < (short) 2; k++) {
                             decoder.readTextString(scratch1, (short) 0);
-                            if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0, (short) 2) == (byte) 0) {
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_ID, (short) 0,
+                                    (short) 2) == (byte) 0) {
                                 // Read the actual id
                                 len3 = decoder.readByteString(scratch1, (short) 0);
                                 exclude[j] = new PublicKeyCredentialDescriptor(scratch1, (short) 0, len3);
-                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0, (short) 4) == (byte) 0) {
+                            } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_TYPE, (short) 0,
+                                    (short) 4) == (byte) 0) {
                                 // Read the type field, it must be text
                                 decoder.readTextString(scratch1, (short) 0);
                                 // It doesn't matter what it is, just check it's string and exists.
@@ -241,11 +246,41 @@ public class AuthenticatorMakeCredential {
 
                     }
                     break;
+                case (short) 6:
+                    try {
+                        // Extensions
+                        // Check it's a map
+                        if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
+                            break;
+                        }
+                        // We support one extension - hmac-secret
+                        short len3 = decoder.readMajorType(CBORBase.TYPE_MAP);
+                        // Iterate over extensions
+                        for (short j = 0; j < len3; j++) {
+                            // Read the name
+                            decoder.readTextString(scratch1, (short) 0);
+                            // Check if it matches hmac-secret
+                            if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
+                                    (short) 11) == (short) 0) {
+                                // Great
+                                hmacSecret = decoder.readBoolean();
+                            } else {
+                                // Skip the unrecognised option
+                                decoder.skipEntry();
+                            }
+                        }
+                    } catch (Exception e) {
+                        UserException.throwIt((short) 0x7000);
+                        break;
+                    }
+
+                    break;
                 case (short) 7:
                     // Options map
                     // Parse the two rk and uv objects
                     // Read the map
-                    if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                    if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
                         UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
                         break;
                     }
@@ -257,12 +292,12 @@ public class AuthenticatorMakeCredential {
                                 (short) 2) == (short) 0) {
                             // Is the user validation bit
                             options[1] = decoder.readBoolean();
-                        } else 
-                        if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
+                        } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_RK, (short) 0,
                                 (short) 2) == (short) 0) {
                             // Is the resident key bit
                             decoder.readBoolean();
-                        } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UP, (short) 0, (short) 2) == (short) 0) {
+                        } else if (Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_UP, (short) 0,
+                                (short) 2) == (short) 0) {
                             // Error out
                             UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_OPTION);
                             break;
@@ -272,42 +307,17 @@ public class AuthenticatorMakeCredential {
                         }
                     }
                     break;
-                
-                case (short) 6:
-                    // Extensions
-                    // Check it's a map
-                    if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
-                        break;
-                    }
-                    // We support one extension - hmac-secret
-                    len2 = decoder.readMajorType(CBORBase.TYPE_MAP);
-                    // Iterate over extensions
-                    for(short j = 0; j < len2; j++) {
-                        // Read the name
-                        decoder.readTextString(scratch1, (short) 0);
-                        // Check if it matches hmac-secret
-                        if(Util.arrayCompare(scratch1, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11) == (short) 0) {
-                            // Great 
-                            hmacSecret = decoder.readBoolean();
-                        } else {
-                            // Skip the unrecognised option
-                            decoder.skipEntry();
-                        }
-                    }
-                    
-                    break;
+
                 default:
                     // Skip it transparently
                     decoder.skipEntry();
                     break;
 
             }
-            
 
         }
         // Check we've got stuff like the clientDataHash
-        if(dataHash == null || rp == null || user == null || params == null) {
+        if (dataHash == null || rp == null || user == null || params == null) {
             UserException.throwIt(CTAP2.CTAP2_ERR_MISSING_PARAMETER);
         }
 
@@ -333,7 +343,7 @@ public class AuthenticatorMakeCredential {
     public boolean isExclude() {
         return (exclude != null && exclude.length > 0);
     }
-    
+
     public boolean isHmac() {
         return hmacSecret;
     }

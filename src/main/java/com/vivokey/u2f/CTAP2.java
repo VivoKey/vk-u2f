@@ -866,6 +866,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         // Put the tag in
         cborEncoder.encodeUInt8((byte) 0x03);
         // Turns out this is DER encoding, again
+
+        // Add 32 for the hash on the end of the assertion
         assertionLen += 32;
         // Sign the data
         vars[3] = assertionCreds[nextAssertion[0]].performSignature(scratch, (short) 0, assertionLen, scratch,
