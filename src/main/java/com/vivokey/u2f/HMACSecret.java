@@ -38,7 +38,7 @@ public class HMACSecret {
                         } else if (dec.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
                             key = dec.readInt8();
                         } else {
-                            UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                            UserException.throwIt((byte)0x91);
                             break;
                         }
                         switch (key) {
@@ -80,7 +80,7 @@ public class HMACSecret {
                                 }
                                 break;
                             default:
-                                UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                                UserException.throwIt((byte) 0x92);
                                 break;
                         }
                     }
