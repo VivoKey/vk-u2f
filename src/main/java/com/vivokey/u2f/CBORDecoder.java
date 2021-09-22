@@ -58,7 +58,7 @@ public class CBORDecoder extends CBORBase {
      * 
      * @return The offset value after the skipped entry
      */
-    public short skipEntry(){
+    public short skipEntry() throws UserException {
         short mapentries = 1;
         switch (getMajorType()) {
             case TYPE_UNSIGNED_INTEGER:
@@ -171,7 +171,7 @@ public class CBORDecoder extends CBORBase {
         return (short) (size & 0xFF);
     }
 
-    public short readLength() {
+    public short readLength() throws UserException {
         final byte size = getIntegerSize(); // Read length information
         short length = 0;
         if (size == 1) {
@@ -179,7 +179,7 @@ public class CBORDecoder extends CBORBase {
         } else if (size == 2) {
             length = readInt16();
         } else { // length information above 4 bytes not supported
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
         }
         return length;
     }
@@ -187,14 +187,14 @@ public class CBORDecoder extends CBORBase {
     /**
      * Reads a boolean at the current location (offset will be increased).
      */
-    public boolean readBoolean() {
+    public boolean readBoolean() throws UserException {
         byte b = readRawByte();
         if (b == ENCODED_TRUE) {
             return true;
         } else if (b == ENCODED_FALSE) {
             return false;
         } else {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
         }
         // Never happens
         return true;
