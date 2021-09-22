@@ -25,7 +25,6 @@ import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
 import javacard.security.ECKey;
-import javacard.security.ECPrivateKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyAgreement;
 import javacard.security.KeyBuilder;
@@ -158,11 +157,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
         chainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         outChainRam = JCSystem.makeTransientShortArray((short) 4, JCSystem.CLEAR_ON_DESELECT);
         isOutChaining = JCSystem.makeTransientBooleanArray((short) 2, JCSystem.CLEAR_ON_DESELECT);
-        ECPublicKey ecDhPub = (ECPublicKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_EC_FP_PUBLIC,
-                JCSystem.MEMORY_TYPE_TRANSIENT_RESET, KeyBuilder.LENGTH_EC_FP_256, false);
-        ECPrivateKey ecDhPriv = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_EC_FP_PRIVATE,
-                JCSystem.MEMORY_TYPE_TRANSIENT_RESET, KeyBuilder.LENGTH_EC_FP_256, false);
-        ecDhKey = new KeyPair(ecDhPub, ecDhPriv);
+        ecDhKey = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
+
         ecDhSet = JCSystem.makeTransientBooleanArray((short) 1, JCSystem.CLEAR_ON_RESET);
         ecDhAg = KeyAgreement.getInstance(KeyAgreement.ALG_EC_SVDP_DH_PLAIN, false);
     }
@@ -292,6 +288,9 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
+        } catch (Exception e) {
+            returnError(apdu, (short) 0x7010);
+            return;
         }
 
         // Create the actual credential
@@ -339,13 +338,15 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Put the authdata identifier there
             cborEncoder.writeRawByte((byte) 0x02);
             // Allocate some space for the byte string
-
+            short attestLen;
             // Depends if we need extensions or not
             if (tempCred.hmacEnabled) {
+                attestLen = (short) ((short) 37 + tempCred.getAttestedLen() + (short) 14);
                 // Extra data is 14 bytes
-                vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen() + 14));
+                vars[0] = cborEncoder.startByteString(attestLen);
             } else {
-                vars[0] = cborEncoder.startByteString((short) (37 + tempCred.getAttestedLen()));
+                attestLen = (short) (37 + tempCred.getAttestedLen());
+                vars[0] = cborEncoder.startByteString(attestLen);
             }
 
             // Stash where it begins
@@ -363,11 +364,13 @@ public class CTAP2 extends Applet implements ExtendedLength {
 
             // If we need to, add the extension data
             if (tempCred.hmacEnabled) {
-                cborEncoder.startMap((short) 1);
+                CBOREncoder hmacEnc = new CBOREncoder();
+                hmacEnc.init(inBuf, vars[0], (short) 14);
+                hmacEnc.startMap((short) 1);
                 // Tag - hmac-secret
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+                hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
                 // Value - true
-                cborEncoder.encodeBoolean(true);
+                hmacEnc.encodeBoolean(true);
             }
             // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
@@ -387,7 +390,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // We sign over the client data hash and the attested data.
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
-            attestation.update(inBuf, vars[7], (short) (tempCred.getAttestedLen() + 37));
+            attestation.update(inBuf, vars[7], attestLen);
             // The client data hash is next, which we use to finish off the signature.
             vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
             // Create the byte string for the signature
