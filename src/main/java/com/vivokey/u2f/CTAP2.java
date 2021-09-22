@@ -24,6 +24,7 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
+import javacard.security.CryptoException;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyAgreement;
@@ -306,6 +307,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
                     returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                     return;
             }
+        } catch (CryptoException e) {
+            returnError(apdu, (byte) 0x71);
         } catch (Exception e) {
             returnError(apdu, (byte) 0x72);
             return;
