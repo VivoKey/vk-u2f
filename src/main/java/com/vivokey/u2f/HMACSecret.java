@@ -52,14 +52,14 @@ public class HMACSecret {
                             case 3:
                                 short val;
                                 // Value, must be 24 (-25 is -1 - 24)
-                                if(dec.getIntegerSize() == CBORBase.ENCODED_ONE_BYTE) {
+                                if(dec.getIntegerSize() == 1) {
                                     if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
                                         val = (short) ((short) -1 - dec.readInt8());
                                     } else {
                                         val = dec.readInt8();
                                     }
                                     
-                                } else if (dec.getIntegerSize() == CBORBase.ENCODED_TWO_BYTES) {
+                                } else if (dec.getIntegerSize() == 2) {
                                     if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
                                         val = (short) ((short) -1 - dec.readInt16());
                                     } else {
