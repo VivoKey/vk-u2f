@@ -121,27 +121,23 @@ public class AuthenticatorGetAssertion {
                 case 0x04:
                     // Extensions - check for hmac-secret
                     // Check for a map first
-                    if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
-                        UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
-                        break;
-                    }
                     // Read length
                     vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     // Read text string
                     decoder.readTextString(scratch, (short) 0);
-                    if(Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11) == 0) {
+                    if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
+                            (short) 11) == 0) {
                         // Is hmac-secret
                         // There's a whole... thing here
-                        if(decoder.getMajorType() != CBORBase.TYPE_MAP) {
+                        if (decoder.getMajorType() != CBORBase.TYPE_MAP) {
                             UserException.throwIt(CTAP2.CTAP2_ERR_CBOR_UNEXPECTED_TYPE);
                             break;
                         }
                         ext = new HMACSecret(decoder);
                         hmac = true;
+                    } else {
+                        decoder.skipEntry();
                     }
-
-
-                    decoder.skipEntry();
                     break;
                 case 0x06:
                     // Pin stuff
