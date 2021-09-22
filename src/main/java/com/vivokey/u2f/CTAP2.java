@@ -325,8 +325,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 }
             } catch (UserException e) {
                 returnError(apdu, e.getReason());
-                return;   
-            }catch (Exception e) {
+                return;
+            } catch (Exception e) {
                 returnError(apdu, (byte) 0x71);
                 return;
             }
@@ -363,29 +363,27 @@ public class CTAP2 extends Applet implements ExtendedLength {
             tempCred.rp.getRp(scratch, (short) 0);
             vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
             // Set flags - User presence, user verified, attestation present
-            inBuf[vars[0]++] = (byte) 0x45;
+            if (tempCred.hmacEnabled) {
+                // Also set the extension data flag
+                inBuf[vars[0]++] = (byte) 0xC5;
+            } else {
+                inBuf[vars[0]++] = (byte) 0x45;
+            }
+
             // Set the signature counter
             vars[0] += tempCred.readCounter(inBuf, vars[0]);
             // Read the credential details in
             // Just note down where this starts for future ref
             vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
-            try {
-                // If we need to, add the extension data
-                if (tempCred.hmacEnabled) {
-                    CBOREncoder hmacEnc = new CBOREncoder();
-                    hmacEnc.init(inBuf, vars[0], (short) 14);
-                    hmacEnc.startMap((short) 1);
-                    // Tag - hmac-secret
-                    hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
-                    // Value - true
-                    hmacEnc.encodeBoolean(true);
-                }
-            } catch (ArrayIndexOutOfBoundsException e) {
-                returnError(apdu, (byte) 0x80);
-                return;
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0x70);
-                return;
+            // If we need to, add the extension data
+            if (tempCred.hmacEnabled) {
+                CBOREncoder hmacEnc = new CBOREncoder();
+                hmacEnc.init(inBuf, vars[0], (short) 14);
+                hmacEnc.startMap((short) 1);
+                // Tag - hmac-secret
+                hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+                // Value - true
+                hmacEnc.encodeBoolean(true);
             }
 
             // Generate and then attach the attestation
@@ -450,6 +448,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             }
             // Create the authenticatorData to sign
             sha.doFinal(assertion.rpId, (short) 0, (short) assertion.rpId.length, scratch, (short) 0);
+            // Flags
             if (assertion.options[1]) {
                 scratch[32] = 0x05;
             } else {
@@ -460,6 +459,8 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Where to copy hash to
             short hashStart = 37;
             if (assertion.isHmac()) {
+                // Update flags
+                scratch[32] = (byte) (scratch[32] | (byte) 0x80);
                 // If hmac, make the space for the crap
                 if (!assertionCreds[0].hmacEnabled) {
                     UserException.throwIt(CTAP2_ERR_INVALID_OPTION);
