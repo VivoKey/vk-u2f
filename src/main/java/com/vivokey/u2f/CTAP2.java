@@ -360,16 +360,23 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Read the credential details in
             // Just note down where this starts for future ref
             vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
-
-            // If we need to, add the extension data
-            if (tempCred.hmacEnabled) {
-                CBOREncoder hmacEnc = new CBOREncoder();
-                hmacEnc.init(inBuf, vars[0], (short) 14);
-                hmacEnc.startMap((short) 1);
-                // Tag - hmac-secret
-                hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
-                // Value - true
-                hmacEnc.encodeBoolean(true);
+            try {
+                // If we need to, add the extension data
+                if (tempCred.hmacEnabled) {
+                    CBOREncoder hmacEnc = new CBOREncoder();
+                    hmacEnc.init(inBuf, vars[0], (short) 14);
+                    hmacEnc.startMap((short) 1);
+                    // Tag - hmac-secret
+                    hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+                    // Value - true
+                    hmacEnc.encodeBoolean(true);
+                }
+            } catch (ArrayIndexOutOfBoundsException e) {
+                returnError(apdu, (byte) 0x80);
+                return;
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0x70);
+                return;
             }
 
             // Generate and then attach the attestation
