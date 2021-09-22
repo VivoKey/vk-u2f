@@ -38,7 +38,7 @@ public class HMACSecret {
                         } else if (dec.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
                             key = dec.readInt8();
                         } else {
-                            UserException.throwIt((byte)(0x80 | (byte) j));
+                            UserException.throwIt(dec.getMajorType());
                             break;
                         }
                         switch (key) {
@@ -52,15 +52,15 @@ public class HMACSecret {
                             case 3:
                                 short val;
                                 // Value, must be 24 (-25 is -1 - 24)
-                                if(dec.getIntegerSize() == 1) {
-                                    if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                if (dec.getIntegerSize() == 1) {
+                                    if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
                                         val = (short) ((short) -1 - dec.readInt8());
                                     } else {
                                         val = dec.readInt8();
                                     }
-                                    
+
                                 } else if (dec.getIntegerSize() == 2) {
-                                    if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                    if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
                                         val = (short) ((short) -1 - dec.readInt16());
                                     } else {
                                         val = dec.readInt16();
@@ -85,7 +85,7 @@ public class HMACSecret {
                                 try {
                                     dec.readByteString(w, (short) 1);
                                 } catch (Exception e) {
-                                    UserException.throwIt((byte) 0x81);
+                                    UserException.throwIt((byte) 0x71);
                                     break;
                                 }
                                 break;
@@ -93,7 +93,7 @@ public class HMACSecret {
                                 try {
                                     dec.readByteString(w, (short) 33);
                                 } catch (Exception e) {
-                                    UserException.throwIt((byte) 0x82);
+                                    UserException.throwIt((byte) 0x72);
                                     break;
                                 }
                                 break;
@@ -131,7 +131,7 @@ public class HMACSecret {
                     try {
                         dec.readByteString(auth, (short) 0);
                     } catch (UserException e) {
-                        UserException.throwIt((byte) 0x80);
+                        UserException.throwIt((byte) 0x70);
                         break;
                     }
                     break;
