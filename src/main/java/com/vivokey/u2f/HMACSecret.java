@@ -16,7 +16,7 @@ public class HMACSecret {
         // Start decoding the hmac-secret part of this
         short len = dec.readMajorType(CBORBase.TYPE_MAP);
         for (short i = 0; i < len; i++) {
-            switch (dec.readInt8()) {
+            switch (dec.readRawByte()) {
                 case 0x01:
                     // The COSE key for DH
                     // Another map
