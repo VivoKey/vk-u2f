@@ -38,7 +38,7 @@ public class HMACSecret {
                         } else if (dec.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
                             key = dec.readInt8();
                         } else {
-                            UserException.throwIt((byte)0x91);
+                            UserException.throwIt((byte)(0x80 | (byte) j));
                             break;
                         }
                         switch (key) {
@@ -51,7 +51,7 @@ public class HMACSecret {
                                 break;
                             case 3:
                                 // Value, must be 24 (-25 is -1 - 24)
-                                if (dec.readInt8() != 24) {
+                                if (dec.readInt16() != 24) {
                                     UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                                     break;
                                 }
