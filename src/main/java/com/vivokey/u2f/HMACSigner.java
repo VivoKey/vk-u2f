@@ -13,17 +13,30 @@ public class HMACSigner {
     private static final byte ipad = 0x36;
     private static final byte opad = 0x5C;
     private static final short LEN_HMAC_BLOCK = (short) 64;
-    byte[] rndBuffer;
-    byte[] ipadK;
-    byte[] opadK;
+    private byte[] rndBuffer;
+    private byte[] ipadK;
+    private byte[] opadK;
 
     public HMACSigner() {
         if (sha == null) {
             sha = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         }
-        rndBuffer = JCSystem.makeTransientByteArray((short) 32, JCSystem.CLEAR_ON_DESELECT);
-        ipadK = JCSystem.makeTransientByteArray(LEN_HMAC_BLOCK, JCSystem.CLEAR_ON_DESELECT);
-        opadK = JCSystem.makeTransientByteArray(LEN_HMAC_BLOCK, JCSystem.CLEAR_ON_DESELECT);
+        try {
+            rndBuffer = JCSystem.makeTransientByteArray((short) 32, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            rndBuffer = new byte[32];
+        }
+        try {
+            ipadK = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            ipadK = new byte[64];
+        }
+        try {
+            opadK = JCSystem.makeTransientByteArray((short) 64, JCSystem.CLEAR_ON_RESET);
+        } catch (Exception e) {
+            opadK = new byte[64];
+        }
+
 
     }
 

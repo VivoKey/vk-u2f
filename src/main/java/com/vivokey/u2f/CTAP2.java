@@ -22,8 +22,10 @@ import javacard.framework.Applet;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
+import javacard.framework.SystemException;
 import javacard.framework.UserException;
 import javacard.framework.Util;
+import javacard.security.CryptoException;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyAgreement;
@@ -321,6 +323,16 @@ public class CTAP2 extends Applet implements ExtendedLength {
                     // Trigger the HMAC key generation
                     tempCred.initialiseCredSecret();
                 }
+            } catch (CryptoException e) {
+                returnError(apdu, (byte) 0x72);
+                return;
+            } catch (SystemException e) {
+                if(e.getReason() == SystemException.NO_TRANSIENT_SPACE) {
+                    returnError(apdu, (byte) 0x73);
+                    return;
+                }
+                returnError(apdu, (byte) 0x74);
+                return;
             } catch (Exception e) {
                 returnError(apdu, (byte) 0x71);
                 return;
