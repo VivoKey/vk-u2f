@@ -126,19 +126,38 @@ public abstract class StoredCredential {
     }
 
     // Initialise the credRandom
-    public boolean initialiseCredSecret() {
+    public void initialiseCredSecret() throws UserException {
         // Generate the actual credRandom
-        credRandom = new byte[32];
-        rng.generateData(credRandom, (short) 0, (short) 32);
+        try {
+            credRandom = new byte[32];
+        } catch (Exception e) {
+            UserException.throwIt((byte) 0x70);
+        }
+        try {
+            rng.generateData(credRandom, (short) 0, (short) 32);
+        } catch (Exception e) {
+            UserException.throwIt((byte) 0x71);
+        }
         hmacEnabled = true;
         // Set up the keys and crypto bits
-        credAES = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
-        credAES.setKey(credRandom, (short) 0);
-        hmacSig = new HMACSigner();
+        try {
+            credAES = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
+        } catch (Exception e) {
+            UserException.throwIt((byte) 0x72);
+        }
+        try {
+            credAES.setKey(credRandom, (short) 0);
+        } catch (Exception e) {
+            UserException.throwIt((byte) 0x73);
+        }
+        try {
+            hmacSig = new HMACSigner();
+        } catch (Exception e) {
+            UserException.throwIt((byte) 0x74);
+        }
         // Some memory to generate out1 and out2
         out1 = new byte[32];
         out2 = new byte[32];
-        return true;
     }
 
     // Generic ID check function, for credential IDs
