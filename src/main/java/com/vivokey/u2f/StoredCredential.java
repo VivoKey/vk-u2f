@@ -42,7 +42,7 @@ public abstract class StoredCredential {
     protected boolean hmacEnabled;
     protected Signature credSig;
     protected HMACSigner hmacSig;
-    protected AESKey credAES;
+    protected AESKey credAes;
     protected byte[] out1;
     protected byte[] out2;
 
@@ -103,7 +103,7 @@ public abstract class StoredCredential {
         byte[] salts = new byte[hmacSec.encSalts.length];
         sharedAes.doFinal(hmacSec.encSalts, (short) 0, (short) (hmacSec.encSalts.length), salts, (short) 0);
         // Init the hmac thing
-        hmacSig.init(credAES);
+        hmacSig.init(credAes);
         // Sign first salt
         hmacSig.doFinal(salts, (short) 0, (short) 32, out1, (short) 0);
         // Re-use sharedAes in encrypt mode
@@ -141,12 +141,12 @@ public abstract class StoredCredential {
         hmacEnabled = true;
         // Set up the keys and crypto bits
         try {
-            credAES = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
+            credAes = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
         } catch (Exception e) {
             UserException.throwIt((byte) 0x72);
         }
         try {
-            credAES.setKey(credRandom, (short) 0);
+            credAes.setKey(credRandom, (short) 0);
         } catch (Exception e) {
             UserException.throwIt((byte) 0x73);
         }
