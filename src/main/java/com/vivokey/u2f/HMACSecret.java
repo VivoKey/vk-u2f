@@ -23,28 +23,28 @@ public class HMACSecret {
                     // Another map
                     short coseLen = dec.readMajorType(CBORBase.TYPE_MAP);
                     if (coseLen != 5) {
-                        UserException.throwIt((byte) 0x70);
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
                     }
                     // Tag 1: kty
                     dec.readInt8();
                     // Value, must be 2
-                    if (dec.readInt8() != (byte) 0x02) {
-                        UserException.throwIt((byte) 0x71);
+                    if (dec.readInt8() != (byte) 2) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
                     }
                     // Tag 3: alg
                     dec.readInt8();
                     // Value, must be 24 (-25 is -1 - 24)
-                    if (dec.readInt8() != (byte) 0x24) {
-                        UserException.throwIt((byte) 0x72);
+                    if (dec.readInt8() != (byte) 24) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
                     }
                     // Tag -1: curve
                     dec.readInt8();
                     // Value, must be 1
-                    if (dec.readInt8() != (byte) 0x01) {
-                        UserException.throwIt((byte) 0x73);
+                    if (dec.readInt8() != (byte) 1) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
                     }
                     // Tag -2: X-coord
@@ -76,7 +76,7 @@ public class HMACSecret {
                     dec.readByteString(auth, (short) 0);
                     break;
                 default:
-                    UserException.throwIt((byte) 0x74);
+                    UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                     break;
             }
         }
