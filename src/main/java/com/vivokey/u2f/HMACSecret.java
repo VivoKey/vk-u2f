@@ -2,6 +2,7 @@ package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
+import javacard.framework.Util;
 
 // Stores the key agreement and associated details of the hmac-secret extension
 public class HMACSecret {
@@ -70,10 +71,10 @@ public class HMACSecret {
                     short len2 = dec.readByteString(tmp, (short) 0);
                     if(len2 == 32) {
                         encSalts = new byte[32];
-                        System.arraycopy(tmp, (short) 0, encSalts, (short) 0, (short) 32);
+                        Util.arrayCopy(tmp, (short) 0, encSalts, (short) 0, (short) 32);
                     } else if(len2 == 64) {
                         encSalts = new byte[64];
-                        System.arraycopy(tmp, (short) 0, encSalts, (short) 0, (short) 64);
+                        Util.arrayCopy(tmp, (short) 0, encSalts, (short) 0, (short) 64);
                     } else {
                         UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_OPTION);
                     }
