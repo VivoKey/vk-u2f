@@ -765,13 +765,20 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Create the authGetInfo - 0x00 is success
             inBuf[0] = 0x00;
             cborEncoder.init(inBuf, (short) 1, (short) 1199);
-            cborEncoder.startMap((short) 4);
+            cborEncoder.startMap((short) 5);
             // 0x01, versions
             cborEncoder.encodeUInt8((byte) 0x01);
             // Value is an array of strings
             cborEncoder.startArray((short) 1);
             // Type 1, FIDO2
             cborEncoder.encodeTextString(Utf8Strings.UTF8_FIDO2, (short) 0, (short) 8);
+            // 0x02, extensions
+            cborEncoder.encodeUInt8((byte) 0x02);
+            // Array of strings
+            cborEncoder.startArray((short) 1);
+            // hmac-secret
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+
             // AAGUID, 0x03
             cborEncoder.encodeUInt8((byte) 0x03);
             cborEncoder.encodeByteString(aaguid, (short) 0, (short) 16);
