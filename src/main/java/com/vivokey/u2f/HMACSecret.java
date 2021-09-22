@@ -31,76 +31,61 @@ public class HMACSecret {
                     } catch (Exception e) {
                         w = new byte[65];
                     }
-                    for (short j = 0; j < coseLen; j++) {
-                        short key = 0;
-                        if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
-                            key = (short) ((short) (-1) - dec.readInt8());
-                        } else if (dec.getMajorType() == CBORBase.TYPE_UNSIGNED_INTEGER) {
-                            key = dec.readInt8();
-                        } else {
-                            UserException.throwIt(dec.getMajorType());
-                            break;
-                        }
-                        switch (key) {
-                            case 1:
-                                // Value should be 2
-                                if (dec.readInt8() != 2) {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                                    break;
-                                }
-                                break;
-                            case 3:
-                                short val;
-                                // Value, must be 24 (-25 is -1 - 24)
-                                if (dec.getIntegerSize() == 1) {
-                                    if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
-                                        val = (short) ((short) -1 - dec.readInt8());
-                                    } else {
-                                        val = dec.readInt8();
-                                    }
+                    // First tag, 0x01
+                    dec.readRawByte();
+                    // Value should be 2
+                    if (dec.readInt8() != 2) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                        break;
+                    }
+                    // Second tag, 0x03
+                    dec.readRawByte();
 
-                                } else if (dec.getIntegerSize() == 2) {
-                                    if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
-                                        val = (short) ((short) -1 - dec.readInt16());
-                                    } else {
-                                        val = dec.readInt16();
-                                    }
-                                } else {
-                                    UserException.throwIt(dec.getIntegerSize());
-                                    break;
-                                }
-                                if (val != (short) -25) {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                                    break;
-                                }
-                                break;
-                            case -1:
-                                // Crv, should be 1
-                                if (dec.readInt8() != 1) {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                                    break;
-                                }
-                                break;
-                            case -2:
-                                try {
-                                    dec.readByteString(w, (short) 1);
-                                } catch (Exception e) {
-                                    UserException.throwIt((byte) 0x71);
-                                    break;
-                                }
-                                break;
-                            case -3:
-                                try {
-                                    dec.readByteString(w, (short) 33);
-                                } catch (Exception e) {
-                                    UserException.throwIt((byte) 0x72);
-                                    break;
-                                }
-                                break;
-                            default:
-                                UserException.throwIt((byte) 0x92);
-                                break;
+                    short val;
+                    // Value, must be 24 (-25 is -1 - 24)
+                    if (dec.getIntegerSize() == 1) {
+                        if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                            val = (short) ((short) -1 - dec.readInt8());
+                        } else {
+                            val = dec.readInt8();
                         }
+
+                    } else if (dec.getIntegerSize() == 2) {
+                        if (dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                            val = (short) ((short) -1 - dec.readInt16());
+                        } else {
+                            val = dec.readInt16();
+                        }
+                    } else {
+                        UserException.throwIt(dec.getIntegerSize());
+                        break;
+                    }
+                    if (val != (short) -25) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                        break;
+                    }
+                    // Next tag, -1
+                    dec.readRawByte();
+                    // Crv, should be 1
+                    if (dec.readInt8() != 1) {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
+                        break;
+                    }
+                    // Next tag, -2
+                    dec.readRawByte();
+                    try {
+                        dec.readByteString(w, (short) 1);
+                    } catch (Exception e) {
+                        UserException.throwIt((byte) 0x71);
+                        break;
+                    }
+                    // Tag -3
+                    dec.readRawByte();
+                    try {
+                        dec.readByteString(w, (short) 33);
+                    } catch (Exception e) {
+                        UserException.throwIt((byte) 0x72);
+                        break;
                     }
                     break;
                 case 0x02:
@@ -111,7 +96,7 @@ public class HMACSecret {
                     try {
                         len = dec.readByteString(tmp, (short) 0);
                     } catch (Exception e) {
-                        UserException.throwIt((byte) 0x83);
+                        UserException.throwIt((byte) 0x73);
                         break;
                     }
                     if (len2 == 32) {
