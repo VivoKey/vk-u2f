@@ -316,11 +316,15 @@ public class CTAP2 extends Applet implements ExtendedLength {
                 returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
                 return;
             }
-            if (cred.isHmac()) {
-                // Trigger the HMAC key generation
-                tempCred.initialiseCredSecret();
+            try {
+                if (cred.isHmac()) {
+                    // Trigger the HMAC key generation
+                    tempCred.initialiseCredSecret();
+                }
+            } catch (Exception e) {
+                returnError(apdu, (byte) 0x71);
+                return;
             }
-
             // Add the credential to the resident storage, overwriting if necessary
             addResident(apdu, tempCred);
 
