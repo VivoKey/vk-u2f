@@ -50,8 +50,26 @@ public class HMACSecret {
                                 }
                                 break;
                             case 3:
+                                short val;
                                 // Value, must be 24 (-25 is -1 - 24)
-                                if (dec.readInt16() != 24) {
+                                if(dec.getIntegerSize() == CBORBase.ENCODED_ONE_BYTE) {
+                                    if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                        val = (short) ((short) -1 - dec.readInt8());
+                                    } else {
+                                        val = dec.readInt8();
+                                    }
+                                    
+                                } else if (dec.getIntegerSize() == CBORBase.ENCODED_TWO_BYTES) {
+                                    if(dec.getMajorType() == CBORBase.TYPE_NEGATIVE_INTEGER) {
+                                        val = (short) ((short) -1 - dec.readInt16());
+                                    } else {
+                                        val = dec.readInt16();
+                                    }
+                                } else {
+                                    UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                                    break;
+                                }
+                                if (val != (short) -25) {
                                     UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                                     break;
                                 }
