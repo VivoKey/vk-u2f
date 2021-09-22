@@ -24,7 +24,6 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
-import javacard.security.CryptoException;
 import javacard.security.ECKey;
 import javacard.security.ECPublicKey;
 import javacard.security.KeyAgreement;
@@ -290,38 +289,22 @@ public class CTAP2 extends Applet implements ExtendedLength {
             returnError(apdu, e.getReason());
             return;
         }
-        try {
-
-            // Create the actual credential
-            switch (cred.getAlgorithm()) {
-                case Signature.ALG_ECDSA_SHA_256:
-                    tempCred = new StoredES256Credential(cred);
-                    break;
-                case Signature.ALG_RSA_SHA_256_PKCS1:
-                    tempCred = new StoredRS256Credential(cred);
-                    break;
-                case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
-                    tempCred = new StoredPS256Credential(cred);
-                    break;
-                default:
-                    returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
-                    return;
-            }
-        } catch (CryptoException e) {
-            if(e.getReason() == CryptoException.NO_SUCH_ALGORITHM) {
-                returnError(apdu, (byte) 0x70);
+        // Create the actual credential
+        switch (cred.getAlgorithm()) {
+            case Signature.ALG_ECDSA_SHA_256:
+                tempCred = new StoredES256Credential(cred);
+                break;
+            case Signature.ALG_RSA_SHA_256_PKCS1:
+                tempCred = new StoredRS256Credential(cred);
+                break;
+            case Signature.ALG_RSA_SHA_256_PKCS1_PSS:
+                tempCred = new StoredPS256Credential(cred);
+                break;
+            default:
+                returnError(apdu, CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                 return;
-            }
-            if(e.getReason() == CryptoException.ILLEGAL_USE) {
-                returnError(apdu, (byte) 0x73);
-                return;
-            }
-            returnError(apdu, (byte) 0x71);
-            return;
-        } catch (Exception e) {
-            returnError(apdu, (byte) 0x72);
-            return;
         }
+
         if (cred.isResident()) {
             // Check if a credential exists on the exclude list
 

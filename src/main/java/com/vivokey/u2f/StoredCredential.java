@@ -20,7 +20,6 @@ import javacard.framework.JCSystem;
 import javacard.framework.UserException;
 import javacard.framework.Util;
 import javacard.security.AESKey;
-import javacard.security.HMACKey;
 import javacard.security.KeyAgreement;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
@@ -41,15 +40,13 @@ public abstract class StoredCredential {
 
     protected byte[] credRandom;
     protected boolean hmacEnabled;
-    protected Signature hmacSig;
     protected Signature credSig;
+    protected HMACSigner hmacSig;
     protected AESKey credAES;
-    protected HMACKey credHMAC;
     protected byte[] out1;
     protected byte[] out2;
 
-    protected static Signature hmacSigShared;
-    protected static HMACKey secretShared;
+    protected static HMACSigner hmacSigShared;
     protected static Cipher sharedAes;
     protected static AESKey sharedAesKey;
 
@@ -57,8 +54,7 @@ public abstract class StoredCredential {
         if (rng == null) {
             rng = ServerKeyCrypto.getRng();
 
-            hmacSigShared = Signature.getInstance(Signature.ALG_HMAC_SHA_256, false);
-            secretShared = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, (short) 32, false);
+            hmacSigShared = new HMACSigner();
             sharedAesKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
             sharedAes = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
         }
@@ -85,12 +81,12 @@ public abstract class StoredCredential {
         byte[] sharedSec = new byte[32];
         sha.doFinal(scratch, (short) 0, (short) 32, sharedSec, (short) 0);
 
-        // This is the shared secret
-        secretShared.setKey(sharedSec, (short) 0, (short) 32);
+        // Init the AES decryption key (also used for HMAC)
+        sharedAesKey.setKey(sharedSec, (short) 0);
         // Generate a HMAC thing
-        hmacSigShared.init(secretShared, Signature.MODE_SIGN);
+        hmacSigShared.init(sharedAesKey);
         // Check the saltEnc by hashing that and verifying the first 16 bytes match auth
-        hmacSigShared.sign(hmacSec.encSalts, (short) 0, (short) (hmacSec.encSalts.length - (short) 1), scratch,
+        hmacSigShared.doFinal(hmacSec.encSalts, (short) 0, (short) (hmacSec.encSalts.length - (short) 1), scratch,
                 (short) 0);
         if (Util.arrayCompare(hmacSec.auth, (short) 0, scratch, (short) 0, (short) 16) != 0) {
             // Problem
@@ -107,9 +103,9 @@ public abstract class StoredCredential {
         byte[] salts = new byte[hmacSec.encSalts.length];
         sharedAes.doFinal(hmacSec.encSalts, (short) 0, (short) (hmacSec.encSalts.length), salts, (short) 0);
         // Init the hmac thing
-        hmacSig.init(credHMAC, Signature.MODE_SIGN);
+        hmacSig.init(credAES);
         // Sign first salt
-        hmacSig.sign(salts, (short) 0, (short) 32, out1, (short) 0);
+        hmacSig.doFinal(salts, (short) 0, (short) 32, out1, (short) 0);
         // Re-use sharedAes in encrypt mode
         sharedAes.init(sharedAesKey, Cipher.MODE_ENCRYPT);
         // Check if there's one or two salts
@@ -120,7 +116,7 @@ public abstract class StoredCredential {
         } else {
             // Two salts
             // Do the second salt
-            hmacSig.sign(salts, (short) 32, (short) 32, out2, (short) 0);
+            hmacSig.doFinal(salts, (short) 32, (short) 32, out2, (short) 0);
             byte[] outs = new byte[64];
             Util.arrayCopy(out1, (short) 0, outs, (short) 0, (short) 32);
             Util.arrayCopy(out2, (short) 0, outs, (short) 32, (short) 32);
@@ -137,9 +133,8 @@ public abstract class StoredCredential {
         hmacEnabled = true;
         // Set up the keys and crypto bits
         credAES = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
-        credHMAC = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_256_BLOCK_64, false);
         credAES.setKey(credRandom, (short) 0);
-        hmacSig = Signature.getInstance(MessageDigest.ALG_SHA_256, Signature.SIG_CIPHER_HMAC, Cipher.PAD_NULL, false);
+        hmacSig = new HMACSigner();
         // Some memory to generate out1 and out2
         out1 = new byte[32];
         out2 = new byte[32];

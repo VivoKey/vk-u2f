@@ -2,8 +2,6 @@ package com.vivokey.u2f;
 
 import javacard.framework.JCSystem;
 import javacard.framework.UserException;
-import javacard.security.HMACKey;
-import javacard.security.Signature;
 
 // Stores the key agreement and associated details of the hmac-secret extension
 public class HMACSecret {
@@ -12,8 +10,6 @@ public class HMACSecret {
     public byte[] encSalts;
     public byte[] auth;
 
-    private static HMACKey secret;
-    private static Signature hmacSig;
 
     public HMACSecret(CBORDecoder dec) throws UserException {
         
