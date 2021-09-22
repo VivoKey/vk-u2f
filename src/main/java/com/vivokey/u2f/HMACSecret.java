@@ -66,13 +66,22 @@ public class HMACSecret {
                 case 0x02:
                     // This is some kind of salting thing
                     // Read it in
-                    encSalts = new byte[dec.readLength()];
-                    dec.readByteString(encSalts, (short) 0);
+                    byte[] tmp = new byte[64];
+                    short len2 = dec.readByteString(tmp, (short) 0);
+                    if(len2 == 32) {
+                        encSalts = new byte[32];
+                        System.arraycopy(tmp, (short) 0, encSalts, (short) 0, (short) 32);
+                    } else if(len2 == 64) {
+                        encSalts = new byte[64];
+                        System.arraycopy(tmp, (short) 0, encSalts, (short) 0, (short) 64);
+                    } else {
+                        UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_OPTION);
+                    }
                     break;
                 case 0x03:
                     // Some kind of authentication
                     // Read it in
-                    auth = new byte[dec.readLength()];
+                    auth = new byte[16];
                     dec.readByteString(auth, (short) 0);
                     break;
                 default:
