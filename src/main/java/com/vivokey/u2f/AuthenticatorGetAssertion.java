@@ -106,7 +106,7 @@ public class AuthenticatorGetAssertion {
                     // Read length
                     vars[3] = decoder.readMajorType(CBORBase.TYPE_MAP);
                     // Read text string
-                    for (int i = 0; i < vars[3]; i++) {
+                    for (short i = 0; i < vars[3]; i++) {
                         decoder.readTextString(scratch, (short) 0);
                         if (Util.arrayCompare(scratch, (short) 0, Utf8Strings.UTF8_HMAC_SECRET, (short) 0,
                                 (short) 11) == 0) {
