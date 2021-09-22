@@ -488,6 +488,11 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // Emit this as a response
             sendLongChaining(apdu, cborEncoder.getCurrentOffset());
         } catch (UserException e) {
+            if(e.getReason() == 0x72) {
+                byte[] buf = apdu.getBuffer();
+                buf[0] = (byte) 0x80;
+                Util.setShort(buf, (short) 1, cborEncoder.getCurrentOffset());
+            }
             returnError(apdu, e.getReason());
 
         }

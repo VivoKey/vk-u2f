@@ -69,7 +69,7 @@ public class HMACSecret {
                     try {
                         dec.readByteString(w, (short) 33);
                     } catch (UserException e) {
-                        UserException.throwIt(dec.getCurrentOffset());
+                        UserException.throwIt((byte) 0x72);
                         break;
                     }
                     break;
