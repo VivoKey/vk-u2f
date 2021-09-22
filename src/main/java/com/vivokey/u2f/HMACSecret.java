@@ -66,7 +66,7 @@ public class HMACSecret {
                                         val = dec.readInt16();
                                     }
                                 } else {
-                                    UserException.throwIt(CTAP2.CTAP2_ERR_INVALID_CBOR);
+                                    UserException.throwIt(dec.getIntegerSize());
                                     break;
                                 }
                                 if (val != (short) -25) {
