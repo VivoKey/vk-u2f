@@ -56,12 +56,10 @@ public abstract class StoredCredential {
     protected StoredCredential() {
         if (rng == null) {
             rng = ServerKeyCrypto.getRng();
-            hmacSigShared = Signature.getInstance(MessageDigest.ALG_SHA_256, Signature.SIG_CIPHER_HMAC, Cipher.PAD_NULL,
-                    false);
-            secretShared = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_RESET,
-                    KeyBuilder.LENGTH_HMAC_SHA_256_BLOCK_64, false);
-            sharedAesKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_256,
-                    false);
+
+            hmacSigShared = Signature.getInstance(Signature.ALG_HMAC_SHA_256, false);
+            secretShared = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, (short) 32, false);
+            sharedAesKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
             sharedAes = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
         }
         id = new byte[16];
@@ -137,12 +135,11 @@ public abstract class StoredCredential {
         credRandom = new byte[32];
         rng.generateData(credRandom, (short) 0, (short) 32);
         hmacEnabled = true;
-        // Set up the keys and crypto bits 
+        // Set up the keys and crypto bits
         credAES = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
         credHMAC = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_256_BLOCK_64, false);
         credAES.setKey(credRandom, (short) 0);
-        hmacSig = Signature.getInstance(MessageDigest.ALG_SHA_256, Signature.SIG_CIPHER_HMAC, Cipher.PAD_NULL,
-        false);
+        hmacSig = Signature.getInstance(MessageDigest.ALG_SHA_256, Signature.SIG_CIPHER_HMAC, Cipher.PAD_NULL, false);
         // Some memory to generate out1 and out2
         out1 = new byte[32];
         out2 = new byte[32];

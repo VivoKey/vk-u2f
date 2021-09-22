@@ -288,9 +288,6 @@ public class CTAP2 extends Applet implements ExtendedLength {
         } catch (UserException e) {
             returnError(apdu, e.getReason());
             return;
-        } catch (Exception e) {
-            returnError(apdu, (byte) 0x71);
-            return;
         }
         try {
 
@@ -315,87 +312,68 @@ public class CTAP2 extends Applet implements ExtendedLength {
         }
         if (cred.isResident()) {
             // Check if a credential exists on the exclude list
-            try {
 
-                if (cred.isExclude() && isPresent(cred.exclude)) {
-                    // Throw the error
-                    returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
-                    return;
-                }
-                if (cred.isHmac()) {
-                    // Trigger the HMAC key generation
-                    tempCred.initialiseCredSecret();
-                }
-
-                // Add the credential to the resident storage, overwriting if necessary
-                addResident(apdu, tempCred);
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0x73);
+            if (cred.isExclude() && isPresent(cred.exclude)) {
+                // Throw the error
+                returnError(apdu, CTAP2_ERR_CREDENTIAL_EXCLUDED);
                 return;
             }
-            try {
-                // Initialise the output buffer, for CBOR writing.
-                // output buffer needs 0x00 as first byte as status code
-                inBuf[0] = 0x00;
-                cborEncoder.init(inBuf, (short) 1, (short) 1199);
-                // Create a map in the buffer
-                vars[0] = cborEncoder.startMap((short) 3);
-
-                // Attestation stuff
-                cborEncoder.writeRawByte((byte) 0x01);
-                cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0x74);
-                return;
+            if (cred.isHmac()) {
+                // Trigger the HMAC key generation
+                tempCred.initialiseCredSecret();
             }
+
+            // Add the credential to the resident storage, overwriting if necessary
+            addResident(apdu, tempCred);
+
+            // Initialise the output buffer, for CBOR writing.
+            // output buffer needs 0x00 as first byte as status code
+            inBuf[0] = 0x00;
+            cborEncoder.init(inBuf, (short) 1, (short) 1199);
+            // Create a map in the buffer
+            vars[0] = cborEncoder.startMap((short) 3);
+
+            // Attestation stuff
+            cborEncoder.writeRawByte((byte) 0x01);
+            cborEncoder.encodeTextString(Utf8Strings.UTF8_PACKED, (short) 0, (short) 6);
             short attestLen;
-            try {
-                // Put the authdata identifier there
-                cborEncoder.writeRawByte((byte) 0x02);
-                // Allocate some space for the byte string
-                // Depends if we need extensions or not
-                if (tempCred.hmacEnabled) {
-                    attestLen = (short) ((short) 37 + tempCred.getAttestedLen() + (short) 14);
-                    // Extra data is 14 bytes
-                    vars[0] = cborEncoder.startByteString(attestLen);
-                } else {
-                    attestLen = (short) (37 + tempCred.getAttestedLen());
-                    vars[0] = cborEncoder.startByteString(attestLen);
-                }
-
-                // Stash where it begins
-                vars[7] = vars[0];
-                // Create the SHA256 hash of the RP ID
-                tempCred.rp.getRp(scratch, (short) 0);
-                vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
-                // Set flags - User presence, user verified, attestation present
-                inBuf[vars[0]++] = (byte) 0x45;
-                // Set the signature counter
-                vars[0] += tempCred.readCounter(inBuf, vars[0]);
-                // Read the credential details in
-                // Just note down where this starts for future ref
-                vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
-
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0x75);
-                return;
+            // Put the authdata identifier there
+            cborEncoder.writeRawByte((byte) 0x02);
+            // Allocate some space for the byte string
+            // Depends if we need extensions or not
+            if (tempCred.hmacEnabled) {
+                attestLen = (short) ((short) 37 + tempCred.getAttestedLen() + (short) 14);
+                // Extra data is 14 bytes
+                vars[0] = cborEncoder.startByteString(attestLen);
+            } else {
+                attestLen = (short) (37 + tempCred.getAttestedLen());
+                vars[0] = cborEncoder.startByteString(attestLen);
             }
-            try {
-                // If we need to, add the extension data
-                if (tempCred.hmacEnabled) {
-                    CBOREncoder hmacEnc = new CBOREncoder();
-                    hmacEnc.init(inBuf, vars[0], (short) 14);
-                    hmacEnc.startMap((short) 1);
-                    // Tag - hmac-secret
-                    hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
-                    // Value - true
-                    hmacEnc.encodeBoolean(true);
-                }
-            } catch (Exception e) {
-                returnError(apdu, (byte) 0x76);
-                return;
+
+            // Stash where it begins
+            vars[7] = vars[0];
+            // Create the SHA256 hash of the RP ID
+            tempCred.rp.getRp(scratch, (short) 0);
+            vars[0] += sha.doFinal(scratch, (short) 0, tempCred.rp.getRpLen(), inBuf, vars[0]);
+            // Set flags - User presence, user verified, attestation present
+            inBuf[vars[0]++] = (byte) 0x45;
+            // Set the signature counter
+            vars[0] += tempCred.readCounter(inBuf, vars[0]);
+            // Read the credential details in
+            // Just note down where this starts for future ref
+            vars[0] += tempCred.getAttestedData(inBuf, vars[0]);
+
+            // If we need to, add the extension data
+            if (tempCred.hmacEnabled) {
+                CBOREncoder hmacEnc = new CBOREncoder();
+                hmacEnc.init(inBuf, vars[0], (short) 14);
+                hmacEnc.startMap((short) 1);
+                // Tag - hmac-secret
+                hmacEnc.encodeTextString(Utf8Strings.UTF8_HMAC_SECRET, (short) 0, (short) 11);
+                // Value - true
+                hmacEnc.encodeBoolean(true);
             }
-            
+
             // Generate and then attach the attestation
             cborEncoder.writeRawByte((byte) 0x03);
             // Start to build into the cbor array manually, to avoid arrayCopy
@@ -415,7 +393,7 @@ public class CTAP2 extends Applet implements ExtendedLength {
             // AuthenticatorData is first. We noted down where it begins and know how long
             // it is.
             attestation.update(inBuf, vars[7], attestLen);
-            
+
             // The client data hash is next, which we use to finish off the signature.
             vars[4] = attestation.sign(cred.dataHash, (short) 0, (short) cred.dataHash.length, scratch, (short) 0);
             // Create the byte string for the signature
