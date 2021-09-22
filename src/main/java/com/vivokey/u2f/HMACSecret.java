@@ -44,7 +44,9 @@ public class HMACSecret {
 
                     // There's a weird issue here
                     // It's a two-byte thing, but maybe shouldn't be, idk
-                    val = dec.readInt8();
+                    dec.readRawByte();
+
+                    val = dec.readRawByte();
                     if (val != (short) 24) {
                         UserException.throwIt(CTAP2.CTAP2_ERR_UNSUPPORTED_ALGORITHM);
                         break;
